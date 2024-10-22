@@ -9,12 +9,14 @@ class zcl_excel_builder definition
     interfaces zif_excel_book_protection .
     interfaces zif_excel_book_vba_project .
 
-    data: o_xl          type ref to zcl_excel,           "classe para manipulacao de excel
-          lo_worksheet  type ref to zcl_excel_worksheet,
-          lo_hyperlink  type ref to zcl_excel_hyperlink,
-          lo_column     type ref to zcl_excel_column,
-          o_converter   type ref to zcl_excel_converter,
-          lo_style_cond type ref to zcl_excel_style_cond.
+    data: o_xl         type ref to zcl_excel,           "classe para manipulacao de excel
+          lo_worksheet type ref to zcl_excel_worksheet,
+          lo_hyperlink type ref to zcl_excel_hyperlink,
+          lo_column    type ref to zcl_excel_column,
+          o_converter  type ref to zcl_excel_converter.
+
+    data: ip_guid     type zexcel_cell_style,
+          io_clone_of type ref to zcl_excel_style.
 
     types:
       begin of wa_materials,
@@ -23,7 +25,6 @@ class zcl_excel_builder definition
         bwkey type mbew-bwkey,
         lbkum type mbew-lbkum,
         salk3 type mbew-salk3,
-        peinh type mbew-peinh,
       end of wa_materials .
     data:
       wt_materials type table of wa_materials .
@@ -113,6 +114,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     "----------------------------------------------------------------
 
+    "----------------------------------------------------------------
     " tratamento de nome e extensão do arquivo
     data full_path type string.
     data namefile type string.
@@ -133,6 +135,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       return.
     endif.
 
+    "cria objeto excel
     create object o_xl.
 
     "----------------------------------------------------------------
@@ -142,14 +145,84 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
 
-    lo_worksheet->set_title( 'Material' ).
+    data: lo_style type ref to zcl_excel_style,
+          lv_guid  type zexcel_cell_style.
 
-    me->set_columns( ).
+* Criar objeto de estilo
+    create object lo_style.
 
-    data: gridlines type zexcel_show_gridlines value abap_true.
+* Estilizar a fonte
+    lo_style->font->name = 'Arial'.            " Definir a fonte como Arial
+    lo_style->font->size = 12.                 " Definir o tamanho da fonte
+    lo_style->font->bold = abap_true.          " Definir a fonte como negrito
+    lo_style->font->italic = abap_false.       " Sem itálico
+    lo_style->font->color = 'FF0000'.          " Definir a cor da fonte como vermelha
 
-    lo_worksheet->set_show_gridlines( i_show_gridlines = gridlines ).
+* Estilizar o preenchimento
+    lo_style->fill->filltype = 'solid'.        " Preenchimento sólido
+    lo_style->fill->fgcolor = 'FFFF00'.        " Cor de preenchimento amarelo
+    lo_style->fill->bgcolor = '000000'.        " Cor de fundo preta
 
+    data c_border_medium type zexcel_border value 'medium'. "#EC NOTEXT.
+
+* Estilizar as bordas
+*    lo_style->borders->allborders = C_BORDER_MEDIUM.
+
+* Estilizar o alinhamento
+    lo_style->alignment->horizontal = 'center'. " Alinhamento centralizado horizontalmente
+    lo_style->alignment->vertical = 'center'.   " Alinhamento centralizado verticalmente
+
+* Definir o formato numérico (exemplo para formato de moeda)
+    lo_style->number_format->format_code = '#,##0.00 [$R$-416];[RED]-#,##0.00 [$R$-416]'.
+
+* Definir proteção (exemplo de célula bloqueada)
+    lo_style->protection->locked = abap_true.   " Bloquear a célula
+
+* Agora obtenha o GUID estilizado
+    lv_guid = lo_style->get_guid( ).
+
+* Exibir o GUID estilizado
+    write: / 'O GUID do estilo configurado é: ', lv_guid.
+
+    " Adaptação: Criar uma aba para cada linha da tabela
+    loop at me->wt_materials into ws_materials.
+
+      " Cria uma nova aba para cada material
+      data(lo_new_worksheet) = o_xl->add_new_worksheet( ).
+
+      " Define o título da aba com o número do material para garantir que seja único
+      data(worksheet_title) = conv string( |Material_{ ws_materials-matnr }| ).
+
+      " Define os dados da aba com os valores da linha correspondente
+
+      lo_new_worksheet->set_cell( ip_row = 1 ip_column = 1 ip_value = 'Nº Material' ip_style = lv_guid ). " Número do material ip_style =
+      lo_new_worksheet->set_cell( ip_row = 2 ip_column = 1 ip_value = 'Descrição' ip_style = lv_guid ). " Descrição do material
+      lo_new_worksheet->set_cell( ip_row = 3 ip_column = 1 ip_value = 'Área' ip_style = lv_guid ). " Chave de avaliação
+      lo_new_worksheet->set_cell( ip_row = 4 ip_column = 1 ip_value = 'Stock' ip_style = lv_guid ). " Estoque
+      lo_new_worksheet->set_cell( ip_row = 5 ip_column = 1 ip_value = 'Total' ip_style = lv_guid ). " Saldo contábil
+
+      lo_column = lo_new_worksheet->get_column( ip_column = 1 ). "Ajusta a coluna A
+      lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+
+      lo_column = lo_new_worksheet->get_column( ip_column = 2 ). "Ajusta a coluna A
+      lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+
+      lo_new_worksheet->set_cell( ip_row = 1 ip_column = 2 ip_value = ws_materials-matnr ip_style = lv_guid ). " Número do material
+      lo_new_worksheet->set_cell( ip_row = 2 ip_column = 2 ip_value = ws_materials-maktx ip_style = lv_guid ). " Descrição do material
+      lo_new_worksheet->set_cell( ip_row = 3 ip_column = 2 ip_value = ws_materials-bwkey ip_style = lv_guid ). " Chave de avaliação
+      lo_new_worksheet->set_cell( ip_row = 4 ip_column = 2 ip_value = ws_materials-lbkum ip_style = lv_guid ). " Estoque
+      lo_new_worksheet->set_cell( ip_row = 5 ip_column = 2 ip_value = ws_materials-salk3 ip_style = lv_guid ). " Saldo contábil
+
+      lo_column = lo_new_worksheet->get_column( ip_column = 1 ). "Ajusta a coluna A
+      lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+
+    endloop.
+
+**    *Ajustar as colunas da aba (pode reutilizar o método 'set_columns' se necessário)
+    me->set_columns(  ).
+
+    "----------------------------------------------------------------
+    " Escrita final do arquivo Excel com todas as abas
     data(o_xlwriter) = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
 
     data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
@@ -157,11 +230,8 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
 
     "----------------------------------------------------------------
-
-    "----------------------------------------------------------------
-
+    " Download do arquivo Excel
     try.
-        "download do arquivo xls
         cl_gui_frontend_services=>gui_download(
           exporting
             filename     = full_path
@@ -175,210 +245,10 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     endtry.
 
     "----------------------------------------------------------------
-
-    "tratamento de erros.
+    " Tratamento de erros.
     if sy-subrc ne 0.
       message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
       return.
     endif.
 
   endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER->GET_FILE_DIRECTORY
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] FILENAME                       TYPE        STRING
-* | [<---] FULL_PATH                      TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method get_file_directory.
-
-    data: namefile  type string,
-          directory type string,
-          fullpath  type string.
-
-    namefile = 'file'.
-
-    "adiciona a extensão '.xlsx' ao nome do arquivo
-    me->append_extension(
-      exporting
-        old_extension = namefile
-      importing
-        new_extension = namefile
-    ).
-
-    "diálogo para selecionar diretorio e nome do arquivo
-    call method cl_gui_frontend_services=>file_save_dialog
-      exporting
-        default_extension = 'xlsx'
-        default_file_name = namefile
-      changing
-        filename          = namefile
-        path              = directory
-        fullpath          = fullpath
-      exceptions
-        others            = 1.
-
-    "se o user nao cancelar a operacao...
-    if sy-subrc = 0.
-      concatenate directory namefile into fullpath separated by '\'. "cria diretorio completo do arquivo
-    else.
-      clear fullpath. "limpa o caminho
-    endif.
-
-    full_path = fullpath. "retorna caminho completo do arquivo
-
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->GET_MATERIALS
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] MATNR                          TYPE        MARA-MATNR(optional)
-* | [--->] BWKEY                          TYPE        MBEW-BWKEY
-* | [--->] LOW_ERSDA                      TYPE        MARA-ERSDA
-* | [--->] HIGH_ERSDA                     TYPE        MARA-ERSDA
-* | [<---] MATERIALS                      TYPE        ZMAT_TT
-* | [<---] E_RESULT                       TYPE        ZRLA_RESULT
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method get_materials.
-
-    "verifica se o numero do material foi enviado
-    "se nao for, busca todos os materiais relacionados a consulta
-    if matnr is not initial.
-
-      select mara~matnr,
-             makt~maktx,
-             mbew~bwkey,
-             mbew~lbkum,
-             mbew~salk3
-      from mara
-      inner join makt on makt~matnr = mara~matnr
-      inner join mbew on mbew~matnr = mara~matnr
-      into corresponding fields of table @me->wt_materials
-      where mara~lvorm ne 'X'
-      and mara~matnr eq @matnr
-      and mbew~bwkey eq @bwkey
-      and mara~ersda ge @low_ersda
-      and mara~ersda le @high_ersda.
-
-    else.
-
-      select mara~matnr,
-             makt~maktx,
-             mbew~bwkey,
-             mbew~lbkum,
-             mbew~salk3,
-             mbew~peinh
-      from mara
-      inner join makt on makt~matnr = mara~matnr
-      inner join mbew on mbew~matnr = mara~matnr
-      into corresponding fields of table @me->wt_materials
-      where mara~lvorm ne 'X'
-      and mbew~bwkey eq @bwkey
-      and mara~ersda ge @low_ersda
-      and mara~ersda le @high_ersda.
-
-    endif.
-
-**    insere a formula da celula na tabela
-**    loop at wt_materials into ws_materials.
-*      ws_materials-valor_unitario = '=C7 / C8'.
-*      modify wt_materials from ws_materials.
-*    endloop.
-
-    materials = me->wt_materials. "tabela recebe objeto de classe.
-
-    "retorno da consulta
-    if materials is initial.
-      e_result-rc = sy-subrc.
-      e_result-message = 'Não foram retornados dados da consulta'.
-    else.
-      e_result-rc = sy-subrc.
-      sort me->wt_materials by matnr ascending.
-    endif.
-
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER->SET_COLUMNS
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_columns.
-
-    lo_column = lo_worksheet->get_column( ip_column = 'A' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-    lo_column = lo_worksheet->get_column( ip_column = 'B' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-    lo_column = lo_worksheet->get_column( ip_column = 'C' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-    lo_column = lo_worksheet->get_column( ip_column = 'D' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-    lo_column = lo_worksheet->get_column( ip_column = 'E' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-    lo_column = lo_worksheet->get_column( ip_column = 'F' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
-
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_PROTECTION~INITIALIZE
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_protection~initialize.
-    " Método para inicializar as configurações de proteção das planilhas Excel.
-    " Esse método pode ser utilizado para definir as configurações de proteção,
-    " como senhas ou restrições de edição, antes de aplicar a proteção nas planilhas.
-
-
-
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_CODENAME                    TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_codename.
-    " Método para definir o *codename* de um objeto no projeto VBA do documento Excel.
-    " O *codename* é um identificador que pode ser utilizado para referenciar objetos
-    " como planilhas ou módulos de forma programática no VBA.
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME_PR
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_CODENAME_PR                 TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_codename_pr.
-    " Método para definir o *codename* de um projeto ou módulo específico no VBA.
-    " Esse método pode ser utilizado para atualizar o *codename* de um elemento do projeto
-    " VBA, permitindo referenciá-lo programaticamente com um novo nome.
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_VBAPROJECT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_VBAPROJECT                  TYPE        XSTRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_vbaproject.
-    " Método para inserir ou modificar um projeto VBA no documento Excel.
-    " Esse método deve aceitar um projeto VBA na forma de um XSTRING e realizar a
-    " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
-    " de código VBA associado.
-
-
-
-
-  endmethod.
-ENDCLASS.
