@@ -92,7 +92,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     create object o_converter.
 
-    " Converte os dados para o formato Excel
+    "converte os dados para o formato Excel
     o_converter->convert(
       exporting
         it_table      = me->wt_materials
@@ -115,7 +115,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method download_xls.
 
-    " tratamento de nome e extensão do arquivo
+    "tratamento de nome e extensão do arquivo
     data full_path type string.
     data namefile type string.
 
@@ -143,10 +143,11 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     "converte dados para xstring
     me->convert_xstring( ).
 
+    "cria um worksheet
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
 
-    data: unit_price type string value '=B4 / B5'.
+    data: unit_price type string value '=B4 / B5'. "define uma formula excel
 
     "itera sobre a tabela principal e monta as celulas do excel
     loop at me->wt_materials into ws_materials.
@@ -161,7 +162,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       if tp_style_bold_center_guid is not initial.
 
         "construcao da primeira coluna
-        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " ip_style = tp_style_bold_center_guid
+        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
         lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
         lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
         lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Stock'       ip_style = tp_style_bold_center_guid ). " Estoque
@@ -177,11 +178,11 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
         lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
 
         "setup da primeira coluna
-        lo_column = lo_new_worksheet->get_column( ip_column = 1 ).
+        lo_column = lo_new_worksheet->get_column( ip_column = 'A' ).
         lo_column->set_width( ip_width = 20 ).
 
         "setup da segunda coluna
-        lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
+        lo_column = lo_new_worksheet->get_column( ip_column = 'B' ).
         lo_column->set_width( ip_width = 20 ).
 
       endif.
@@ -193,11 +194,13 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     "----------------------------------------------------------------
 
+    "inicia o escrito do arquivo
     data(o_xlwriter) = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
     data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
     data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
 
     "----------------------------------------------------------------
+
     "download do arquivo Excel
     try.
         cl_gui_frontend_services=>gui_download(
@@ -213,6 +216,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     endtry.
 
     "----------------------------------------------------------------
+
     " Tratamento de erros.
     if sy-subrc ne 0.
       message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
@@ -230,9 +234,9 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method get_file_directory.
 
-    data: namefile  type string,
-          directory type string,
-          fullpath  type string.
+    data: namefile  type string, "nome do arquivo
+          directory type string, "diretorio
+          fullpath  type string. "caminho completo
 
     namefile = 'file'.
 
@@ -317,7 +321,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     endif.
 
-    materials = me->wt_materials. "tabela recebe objeto de classe.
+    materials = me->wt_materials. "atributo de classe recebe resultado da consulta e envia por parametro
 
     "retorno da consulta
     if materials is initial.
@@ -373,6 +377,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_style.
 
+    "cria objetos das bordas
     create object o_border_dark.
     o_border_dark->border_color-rgb = zcl_excel_style_color=>c_black.
     o_border_dark->border_style = zcl_excel_style_border=>c_border_thin.
@@ -380,6 +385,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     o_border_light->border_color-rgb = zcl_excel_style_color=>c_gray.
     o_border_light->border_style = zcl_excel_style_border=>c_border_thin.
 
+    "monta o primeiro estilo
     create object me->lo_style.
     lo_style                         = o_xl->add_new_style( ).
     lo_style->font->bold             = abap_true.
@@ -393,8 +399,9 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_style->borders->allborders    = o_border_light.
     lo_style->fill->filltype         = zcl_excel_style_fill=>c_fill_solid.
     lo_style->fill->fgcolor-rgb      = zcl_excel_style_color=>c_black.
-    tp_style_bold_center_guid        = lo_style->get_guid( ).
+    tp_style_bold_center_guid        = lo_style->get_guid( ). "nao esquecer
 
+    "monta o segundo estilo
     lo_style                         = o_xl->add_new_style( ).
     lo_style->font->bold             = abap_false.
     lo_style->font->italic           = abap_false.
@@ -405,7 +412,9 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
     lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
     lo_style->borders->allborders    = o_border_dark.
-    tp_style_bold_center_guid2       = lo_style->get_guid( ).
+    tp_style_bold_center_guid2       = lo_style->get_guid( ). "nao esquecer
+
+    "é possível montar vários estilos guid e usar de forma como convém
 
   endmethod.
 
@@ -418,9 +427,6 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     " Método para inicializar as configurações de proteção das planilhas Excel.
     " Esse método pode ser utilizado para definir as configurações de proteção,
     " como senhas ou restrições de edição, antes de aplicar a proteção nas planilhas.
-
-
-
   endmethod.
 
 
@@ -458,9 +464,5 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     " Esse método deve aceitar um projeto VBA na forma de um XSTRING e realizar a
     " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
     " de código VBA associado.
-
-
-
-
   endmethod.
 ENDCLASS.
