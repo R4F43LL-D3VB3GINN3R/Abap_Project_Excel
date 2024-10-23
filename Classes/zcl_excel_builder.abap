@@ -32,6 +32,11 @@ class zcl_excel_builder definition
       ws_materials type wa_materials,
       e_result     type zrla_result.
 
+    data: o_border_dark              type ref to zcl_excel_style_border,
+          o_border_light             type ref to zcl_excel_style_border,
+          tp_style_bold_center_guid  type zexcel_cell_style,
+          tp_style_bold_center_guid2 type zexcel_cell_style.
+
     methods get_materials
       importing
         !matnr      type mara-matnr optional
@@ -153,43 +158,35 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       data(worksheet_title) = conv zexcel_sheet_title( |Material_{ ws_materials-matnr }| ).
       lo_new_worksheet->set_title( ip_title = worksheet_title ).
 
-      if guid is not initial.
+      if tp_style_bold_center_guid is not initial.
 
-      "construcao da primeira coluna
-      lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = guid ). " Número do material ip_style =
-      lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = guid ). " Descrição do material
-      lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = guid ). " Chave de avaliação
-      lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Stock'       ip_style = guid ). " Estoque
-      lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Total'       ip_style = guid ). " Saldo contábil
-      lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Unidade'     ip_style = guid ). " Preço Unidade
+        "construcao da primeira coluna
+        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " ip_style = tp_style_bold_center_guid
+        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
+        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
+        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Stock'       ip_style = tp_style_bold_center_guid ). " Estoque
+        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Total'       ip_style = tp_style_bold_center_guid ). " Saldo contábil
+        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Unidade'     ip_style = tp_style_bold_center_guid ). " Preço Unidade
 
-      "construcao da segunda coluna
-      lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value   = ws_materials-matnr ip_style = guid ). " Número do material
-      lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value   = ws_materials-maktx ip_style = guid ). " Descrição do material
-      lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value   = ws_materials-bwkey ip_style = guid ). " Chave de avaliação
-      lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value   = ws_materials-lbkum ip_style = guid ). " Estoque
-      lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value   = ws_materials-salk3 ip_style = guid ). " Saldo contábil
-      lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = guid ). " Preço Unidade
+        "construcao da segunda coluna
+        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
+        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value   = ws_materials-maktx ip_style = tp_style_bold_center_guid2 ). " Descrição do material
+        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
+        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value   = ws_materials-lbkum ip_style = tp_style_bold_center_guid2 ). " Estoque
+        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
+        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
 
-      "setup da primeira coluna
-      lo_column = lo_new_worksheet->get_column( ip_column = 1 ).
-      lo_column->set_width( ip_width = 20 ).
+        "setup da primeira coluna
+        lo_column = lo_new_worksheet->get_column( ip_column = 1 ).
+        lo_column->set_width( ip_width = 20 ).
 
-      "setup da segunda coluna
-      lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
-      lo_column->set_width( ip_width = 20 ).
+        "setup da segunda coluna
+        lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
+        lo_column->set_width( ip_width = 20 ).
 
       endif.
 
     endloop.
-
-    lo_new_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value   = 'aaaaaaa' ).
-    lo_new_worksheet->set_cell_style(
-      exporting
-        ip_column = 'A'
-        ip_row    = 7
-        ip_style  = guid
-    ).
 
     "setup da primeira sheet com visao geral da tabela inteira
     me->set_columns(  ).
@@ -340,7 +337,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_columns.
 
-   "titulo do worksheet
+    "titulo do worksheet
     data(worksheet_title) = conv zexcel_sheet_title( |Materiais| ).
     lo_worksheet->set_title( ip_title = worksheet_title ).
 
@@ -376,35 +373,94 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_style.
 
+    create object o_border_dark.
+    o_border_dark->border_color-rgb = zcl_excel_style_color=>c_black.
+    o_border_dark->border_style = zcl_excel_style_border=>c_border_thin.
+    create object o_border_light.
+    o_border_light->border_color-rgb = zcl_excel_style_color=>c_gray.
+    o_border_light->border_style = zcl_excel_style_border=>c_border_thin.
+
     create object me->lo_style.
-    me->o_xl->add_new_style( ip_guid = me->guid ).
+    lo_style                         = o_xl->add_new_style( ).
+    lo_style->font->bold             = abap_true.
+    lo_style->font->italic           = abap_false.
+    lo_style->font->name             = zcl_excel_style_font=>c_name_arial.
+    lo_style->font->scheme           = zcl_excel_style_font=>c_scheme_none.
+    lo_style->font->size             = 12.
+    lo_style->font->color-rgb        = zcl_excel_style_color=>c_white.
+    lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
+    lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
+    lo_style->borders->allborders    = o_border_light.
+    lo_style->fill->filltype         = zcl_excel_style_fill=>c_fill_solid.
+    lo_style->fill->fgcolor-rgb      = zcl_excel_style_color=>c_black.
+    tp_style_bold_center_guid        = lo_style->get_guid( ).
 
-    me->lo_style->font->name = 'Arial'.            " Definir a fonte como Arial
-    me->lo_style->font->size = 12.                 " Definir o tamanho da fonte
-    me->lo_style->font->bold = abap_true.          " Definir a fonte como negrito
-    me->lo_style->font->italic = abap_true.        " Sem itálico
-    me->lo_style->font->color = 'FF0000'.          " Definir a cor da fonte como vermelha
-
-    me->lo_style->fill->filltype = 'solid'.        " Preenchimento sólido
-    me->lo_style->fill->fgcolor = 'FFFF00'.        " Cor de preenchimento amarelo
-    me->lo_style->fill->bgcolor = '000000'.        " Cor de fundo preta
-
-    data allborders type ref to zcl_excel_style_border .
-
-    create object allborders.
-    data border_style type zexcel_border .
-    data border_color type zexcel_s_style_color .
-    allborders->border_color = '#FFFFFF'.
-    allborders->border_style = 'medium'.
-    me->lo_style->borders->allborders = allborders.
-
-    me->lo_style->alignment->horizontal = 'center'. " Alinhamento centralizado horizontalmente
-    me->lo_style->alignment->vertical   = 'center'.  " Alinhamento centralizado verticalmente
-
-    me->lo_style->number_format->format_code = '#,##0.00 [$R$-416];[RED]-#,##0.00 [$R$-416]'.
-
-*      lo_style->protection->locked = abap_true.   " Bloquear a célula
-
-    guid = lo_style->get_guid( ).
+    lo_style                         = o_xl->add_new_style( ).
+    lo_style->font->bold             = abap_false.
+    lo_style->font->italic           = abap_false.
+    lo_style->font->name             = zcl_excel_style_font=>c_name_arial.
+    lo_style->font->scheme           = zcl_excel_style_font=>c_scheme_none.
+    lo_style->font->size             = 12.
+    lo_style->font->color-rgb        = zcl_excel_style_color=>c_black.
+    lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
+    lo_style->alignment->horizontal  = zcl_excel_style_alignment=>c_horizontal_center.
+    lo_style->borders->allborders    = o_border_dark.
+    tp_style_bold_center_guid2       = lo_style->get_guid( ).
 
   endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_PROTECTION~INITIALIZE
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method zif_excel_book_protection~initialize.
+    " Método para inicializar as configurações de proteção das planilhas Excel.
+    " Esse método pode ser utilizado para definir as configurações de proteção,
+    " como senhas ou restrições de edição, antes de aplicar a proteção nas planilhas.
+
+
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IP_CODENAME                    TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method zif_excel_book_vba_project~set_codename.
+    " Método para definir o *codename* de um objeto no projeto VBA do documento Excel.
+    " O *codename* é um identificador que pode ser utilizado para referenciar objetos
+    " como planilhas ou módulos de forma programática no VBA.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME_PR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IP_CODENAME_PR                 TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method zif_excel_book_vba_project~set_codename_pr.
+    " Método para definir o *codename* de um projeto ou módulo específico no VBA.
+    " Esse método pode ser utilizado para atualizar o *codename* de um elemento do projeto
+    " VBA, permitindo referenciá-lo programaticamente com um novo nome.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_VBAPROJECT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IP_VBAPROJECT                  TYPE        XSTRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method zif_excel_book_vba_project~set_vbaproject.
+    " Método para inserir ou modificar um projeto VBA no documento Excel.
+    " Esse método deve aceitar um projeto VBA na forma de um XSTRING e realizar a
+    " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
+    " de código VBA associado.
+
+
+
+
+  endmethod.
+ENDCLASS.
