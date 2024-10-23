@@ -194,7 +194,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     "----------------------------------------------------------------
 
-    "inicia o escrito do arquivo
+    "inicia o escritor do arquivo
     data(o_xlwriter) = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
     data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
     data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
