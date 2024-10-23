@@ -4,22 +4,28 @@
 
 start-of-selection.
 
-  create object ol_excel.
-  perform get_data.
-  perform display_alv.
+  create object ol_excel. "instancia da classe excel
+  perform get_data.       "consulta sql
+  perform display_alv.    "renderiza alv
 
 form get_data.
 
+  "metodo que retorna uma tabela de materiais
   ol_excel->get_materials(
     exporting
-      matnr      = p_matnr
-      bwkey      = p_bwkey
-      low_ersda  = s_ersda-low
-      high_ersda = s_ersda-high
+      matnr      = p_matnr      "numero do material
+      bwkey      = p_bwkey      "area
+      low_ersda  = s_ersda-low  "data inicial
+      high_ersda = s_ersda-high "data final
     importing
-      materials  = it_mat
-      e_result   = result
+      materials  = it_mat       "tabela de materiais
+      e_result   = result       "resultado da operacao
   ).
+
+  if result-rc ne 0.
+    message result-message type 'E'.
+    return.
+  endif.
 
 endform.
 
@@ -92,19 +98,8 @@ form build_alv_columns.
       value = if_salv_c_alignment=>centered
       ).
 
-      lo_alv_column ?= lo_alv_columns->get_column( 'PEINH' ).
-      lo_alv_column->set_long_text( 'Unidade' ).
-      lo_alv_column->set_medium_text( '' ).
-      lo_alv_column->set_short_text( '' ).
-      lo_alv_column->set_output_length('10').
-      lo_alv_column->set_optimized( abap_true ).
-      lo_alv_column->set_alignment(
-      value = if_salv_c_alignment=>centered
-      ).
-
-    catch cx_salv_not_found into data(lx_not_found).
-      " Tratar a exceção, por exemplo, logar o erro ou setar uma flag.
-      " MESSAGE 'Coluna não encontrada' TYPE 'E'. "ou qualquer outro tratamento necessário.
+    catch cx_root into data(lx_not_found).
+      message lx_not_found->get_text( ) type 'E' display like 'E'.
   endtry.
 
 endform.
@@ -121,7 +116,7 @@ form display_alv.
     catch cx_salv_msg.
   endtry.
 
-  perform build_alv_columns.
+  perform build_alv_columns. "formata as colunas do alv
 
   lo_alv->set_screen_status(
     exporting
@@ -130,11 +125,10 @@ form display_alv.
       set_functions = cl_salv_table=>c_functions_all
   ).
 
-  lo_events = lo_alv->get_event( ).
+  lo_events = lo_alv->get_event( ). "objeto de evento recebe o evento da classe
 
-  set handler zcl_event_handler=>added_function for lo_events.
+  set handler zcl_event_handler=>added_function for lo_events. "envia o evento para o metodo estático da classe
 
-  "exibicao do alv
-  lo_alv->display( ).
+  lo_alv->display( ). "renderiza o alv
 
 endform.
