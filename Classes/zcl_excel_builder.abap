@@ -379,8 +379,14 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     me->lo_style->fill->fgcolor = 'FFFF00'.        " Cor de preenchimento amarelo
     me->lo_style->fill->bgcolor = '000000'.        " Cor de fundo preta
 
-    constants c_border_medium type zexcel_border value 'medium'. "#EC NOTEXT.
-    me->lo_style->borders->allborders = c_border_medium.
+    data allborders type ref to zcl_excel_style_border .
+
+    create object allborders.
+    data border_style type zexcel_border .
+    data border_color type zexcel_s_style_color .
+    allborders->border_color = '#FFFFFF'.
+    allborders->border_style = 'medium'.
+    me->lo_style->borders->allborders = allborders.
 
     me->lo_style->alignment->horizontal = 'center'. " Alinhamento centralizado horizontalmente
     me->lo_style->alignment->vertical   = 'center'.  " Alinhamento centralizado verticalmente
@@ -396,59 +402,3 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     ).
 
   endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_PROTECTION~INITIALIZE
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_protection~initialize.
-    " Método para inicializar as configurações de proteção das planilhas Excel.
-    " Esse método pode ser utilizado para definir as configurações de proteção,
-    " como senhas ou restrições de edição, antes de aplicar a proteção nas planilhas.
-
-
-
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_CODENAME                    TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_codename.
-    " Método para definir o *codename* de um objeto no projeto VBA do documento Excel.
-    " O *codename* é um identificador que pode ser utilizado para referenciar objetos
-    " como planilhas ou módulos de forma programática no VBA.
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_CODENAME_PR
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_CODENAME_PR                 TYPE        STRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_codename_pr.
-    " Método para definir o *codename* de um projeto ou módulo específico no VBA.
-    " Esse método pode ser utilizado para atualizar o *codename* de um elemento do projeto
-    " VBA, permitindo referenciá-lo programaticamente com um novo nome.
-  endmethod.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->ZIF_EXCEL_BOOK_VBA_PROJECT~SET_VBAPROJECT
-* +-------------------------------------------------------------------------------------------------+
-* | [--->] IP_VBAPROJECT                  TYPE        XSTRING
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  method zif_excel_book_vba_project~set_vbaproject.
-    " Método para inserir ou modificar um projeto VBA no documento Excel.
-    " Esse método deve aceitar um projeto VBA na forma de um XSTRING e realizar a
-    " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
-    " de código VBA associado.
-
-
-
-
-  endmethod.
-ENDCLASS.
