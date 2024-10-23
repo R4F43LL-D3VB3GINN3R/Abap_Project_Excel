@@ -306,7 +306,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     data(worksheet_title) = conv zexcel_sheet_title( |All Materiais| ).
     lo_worksheet->set_title( ip_title = worksheet_title ).
 
-    "construcao da primeira coluna
+    "construcao do cabecalho
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'C' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
@@ -314,6 +314,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'E' ip_value = 'Total'       ip_style = tp_style_bold_center_guid ). " Saldo contábil
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'F' ip_value = 'Unidade'     ip_style = tp_style_bold_center_guid ). " Preço Unidade
 
+    "contador de linhas
     data: lv_index type i.
     lv_index = 2.
 
@@ -329,7 +330,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 *          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
 *        endif.
 
-        "construcao da segunda coluna
+        "construcao das linhas
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value   = ws_materials-maktx ip_style = tp_style_bold_center_guid2 ). " Descrição do material
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
@@ -337,7 +338,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'E' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'F' ip_formula = '0'                ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
 
-        add 1 to lv_index.
+        add 1 to lv_index. "incrementa para a proxima linha
 
       endif.
 
@@ -367,7 +368,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_column = lo_worksheet->get_column( ip_column = 'F' ).
     lo_column->set_width( ip_width = 20 ).
 
-    clear lv_index.
+    lv_index = 2. "reseta o contador
 
   endmethod.
 
