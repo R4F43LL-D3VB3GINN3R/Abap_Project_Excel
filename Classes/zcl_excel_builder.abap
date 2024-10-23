@@ -52,7 +52,7 @@ class zcl_excel_builder definition
   private section.
 
     methods convert_xstring .
-    methods set_columns .
+    methods set_main_table .
     methods append_extension
       importing
         !old_extension type string
@@ -144,9 +144,9 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       me->set_style( ).
       "converte dados para xstring
       me->convert_xstring( ).
-      "setup da primeira sheet com visao geral da tabela inteira
-      me->set_columns(  ).
-      "insere paginacoes
+      "insere o worksheet com a tabela completa
+      me->set_main_table(  ).
+      "insere worksheets com cada linha da tabela individualmente
       me->set_sheets( ).
 
     "----------------------------------------------------------------
@@ -293,10 +293,10 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER->SET_COLUMNS
+* | Instance Private Method ZCL_EXCEL_BUILDER->SET_MAIN_TABLE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_columns.
+  method set_main_table.
 
     "cria um worksheet
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
@@ -367,6 +367,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_column = lo_worksheet->get_column( ip_column = 'F' ).
     lo_column->set_width( ip_width = 20 ).
 
+    clear lv_index.
 
   endmethod.
 
