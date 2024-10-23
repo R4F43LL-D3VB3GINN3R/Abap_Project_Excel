@@ -91,21 +91,21 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method convert_xstring.
 
-    create object o_converter.
+      create object o_converter.
 
-    "converte os dados para o formato Excel
-    o_converter->convert(
-      exporting
-        it_table      = me->wt_materials
-      changing
-        co_excel      = me->o_xl
-    ).
+      "converte os dados para o formato Excel
+      o_converter->convert(
+        exporting
+          it_table      = me->wt_materials
+        changing
+          co_excel      = me->o_xl
+      ).
 
-    "tratamento de erros
-    if sy-subrc ne 0.
-      message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
-      return.
-    endif.
+      "tratamento de erros
+      if sy-subrc ne 0.
+        message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
+        return.
+      endif.
 
   endmethod.
 
@@ -136,22 +136,18 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       return.
     endif.
 
-    "cria objeto excel
-    create object o_xl.
+    "----------------------------------------------------------------
 
-    "insere o estilo
-    me->set_style( ).
-    "converte dados para xstring
-    me->convert_xstring( ).
-    "insere paginacoes
-    me->set_sheets( ).
+      create object o_xl. "cria objeto excel
 
-    "cria um worksheet
-    data(o_xl_ws) = o_xl->get_active_worksheet( ).
-    lo_worksheet = o_xl_ws.
-
-    "setup da primeira sheet com visao geral da tabela inteira
-    me->set_columns(  ).
+      "insere o estilo
+      me->set_style( ).
+      "converte dados para xstring
+      me->convert_xstring( ).
+      "setup da primeira sheet com visao geral da tabela inteira
+      me->set_columns(  ).
+      "insere paginacoes
+      me->set_sheets( ).
 
     "----------------------------------------------------------------
 
@@ -302,38 +298,81 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_columns.
 
+    "cria um worksheet
+    data(o_xl_ws) = o_xl->get_active_worksheet( ).
+    lo_worksheet = o_xl_ws.
+
     "titulo do worksheet
-    data(worksheet_title) = conv zexcel_sheet_title( |Materiais| ).
+    data(worksheet_title) = conv zexcel_sheet_title( |All Materiais| ).
     lo_worksheet->set_title( ip_title = worksheet_title ).
 
+    "construcao da primeira coluna
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'C' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'D' ip_value = 'Stock'       ip_style = tp_style_bold_center_guid ). " Estoque
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'E' ip_value = 'Total'       ip_style = tp_style_bold_center_guid ). " Saldo contábil
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'F' ip_value = 'Unidade'     ip_style = tp_style_bold_center_guid ). " Preço Unidade
+
+    data: lv_index type i.
+    lv_index = 2.
+
+     "itera sobre a tabela principal e monta as celulas do excel
+    loop at me->wt_materials into ws_materials.
+
+      if tp_style_bold_center_guid is not initial.
+
+*        "tratamento da formula para campos com valores zero
+*        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
+*          unit_price = '0'.
+*        else.
+*          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
+*        endif.
+
+        "construcao da segunda coluna
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value   = ws_materials-maktx ip_style = tp_style_bold_center_guid2 ). " Descrição do material
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value   = ws_materials-lbkum ip_style = tp_style_bold_center_guid2 ). " Estoque
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'E' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'F' ip_formula = '0'                ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
+
+        add 1 to lv_index.
+
+      endif.
+
+    endloop.
+
+    "setup da primeira coluna
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
     lo_column->set_width( ip_width = 20 ).
 
+    "setup da segunda coluna
     lo_column = lo_worksheet->get_column( ip_column = 'B' ).
-    lo_column->set_width( ip_width = 20 ).
-    lo_column->set_column_style_by_guid( ip_style_guid = guid ).
+    lo_column->set_width( ip_width = 40 ).
 
+    "setup da segunda coluna
     lo_column = lo_worksheet->get_column( ip_column = 'C' ).
     lo_column->set_width( ip_width = 20 ).
-    lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
+    "setup da segunda coluna
     lo_column = lo_worksheet->get_column( ip_column = 'D' ).
     lo_column->set_width( ip_width = 20 ).
-    lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
+    "setup da segunda coluna
     lo_column = lo_worksheet->get_column( ip_column = 'E' ).
     lo_column->set_width( ip_width = 20 ).
-    lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
+    "setup da segunda coluna
     lo_column = lo_worksheet->get_column( ip_column = 'F' ).
     lo_column->set_width( ip_width = 20 ).
-    lo_column->set_column_style_by_guid( ip_style_guid = guid ).
+
 
   endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Public Method ZCL_EXCEL_BUILDER->SET_SHEETS
+* | Instance Private Method ZCL_EXCEL_BUILDER->SET_SHEETS
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_sheets.
@@ -404,7 +443,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     o_border_light->border_color-rgb = zcl_excel_style_color=>c_gray.
     o_border_light->border_style = zcl_excel_style_border=>c_border_thin.
 
-    "monta o primeiro estilo
+    "monta o primeiro estilo para a coluna A da paginacao
     create object me->lo_style.
     lo_style                         = o_xl->add_new_style( ).
     lo_style->font->bold             = abap_true.
@@ -420,7 +459,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     lo_style->fill->fgcolor-rgb      = zcl_excel_style_color=>c_black.
     tp_style_bold_center_guid        = lo_style->get_guid( ). "nao esquecer
 
-    "monta o segundo estilo
+    "monta o primeiro estilo para a coluna B da paginacao
     lo_style                         = o_xl->add_new_style( ).
     lo_style->font->bold             = abap_false.
     lo_style->font->italic           = abap_false.
