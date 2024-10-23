@@ -1,16 +1,16 @@
-class ZCL_EXCEL_BUILDER definition
+class zcl_excel_builder definition
   public
   final
   create public .
 
-public section.
+  public section.
 
-  interfaces ZIF_EXCEL_BOOK_PROPERTIES .
-  interfaces ZIF_EXCEL_BOOK_PROTECTION .
-  interfaces ZIF_EXCEL_BOOK_VBA_PROJECT .
+    interfaces zif_excel_book_properties .
+    interfaces zif_excel_book_protection .
+    interfaces zif_excel_book_vba_project .
 
-  types:
-    begin of wa_materials,
+    types:
+      begin of wa_materials,
         matnr type mara-matnr,
         maktx type makt-maktx,
         bwkey type mbew-bwkey,
@@ -18,47 +18,47 @@ public section.
         salk3 type mbew-salk3,
       end of wa_materials .
 
-  data O_XL type ref to ZCL_EXCEL .
-  data LO_WORKSHEET type ref to ZCL_EXCEL_WORKSHEET .
-  data LO_HYPERLINK type ref to ZCL_EXCEL_HYPERLINK .
-  data LO_COLUMN type ref to ZCL_EXCEL_COLUMN .
-  data O_CONVERTER type ref to ZCL_EXCEL_CONVERTER .    "classe para manipulacao de excel
+    data: o_xl         type ref to zcl_excel,
+          lo_worksheet type ref to zcl_excel_worksheet,
+          lo_hyperlink type ref to zcl_excel_hyperlink,
+          lo_column    type ref to zcl_excel_column,
+          o_converter  type ref to zcl_excel_converter.
 
-  data GUID type ZEXCEL_CELL_STYLE .
-  data lo_style type ref to ZCL_EXCEL_STYLE .
+    data: guid     type zexcel_cell_style,
+          lo_style type ref to zcl_excel_style.
 
-  data:
-    wt_materials type table of wa_materials .
-  data WS_MATERIALS type WA_MATERIALS .
-  data E_RESULT type ZRLA_RESULT .
+    data:
+      wt_materials type table of wa_materials,
+      ws_materials type wa_materials,
+      e_result     type zrla_result.
 
-  methods GET_MATERIALS
-    importing
-      !MATNR type MARA-MATNR optional
-      !BWKEY type MBEW-BWKEY
-      !LOW_ERSDA type MARA-ERSDA
-      !HIGH_ERSDA type MARA-ERSDA
-    exporting
-      !MATERIALS type ZMAT_TT
-      !E_RESULT type ZRLA_RESULT .
-  methods DOWNLOAD_XLS .
+    methods get_materials
+      importing
+        !matnr      type mara-matnr optional
+        !bwkey      type mbew-bwkey
+        !low_ersda  type mara-ersda
+        !high_ersda type mara-ersda
+      exporting
+        !materials  type zmat_tt
+        !e_result   type zrla_result .
+    methods download_xls .
   protected section.
 
-private section.
+  private section.
 
-  methods CONVERT_XSTRING .
-  methods SET_COLUMNS .
-  methods APPEND_EXTENSION                   "prepara caminho para o arquivo com extensao
-    importing
-      !OLD_EXTENSION type STRING
-    exporting
-      !NEW_EXTENSION type STRING .
-  methods GET_FILE_DIRECTORY                 "prepara o caminho para o arquivo
-    importing
-      !FILENAME type STRING
-    exporting
-      !FULL_PATH type STRING .
-  methods set_style.
+    methods convert_xstring .
+    methods set_columns .
+    methods append_extension
+      importing
+        !old_extension type string
+      exporting
+        !new_extension type string .
+    methods get_file_directory
+      importing
+        !filename  type string
+      exporting
+        !full_path type string .
+    methods set_style .
 ENDCLASS.
 
 
@@ -110,9 +110,6 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method download_xls.
 
-    "----------------------------------------------------------------
-
-    "----------------------------------------------------------------
     " tratamento de nome e extensão do arquivo
     data full_path type string.
     data namefile type string.
@@ -144,6 +141,8 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
 
+    data: unit_price type string value '=B4 / B5'.
+
     "itera sobre a tabela principal e monta as celulas do excel
     loop at me->wt_materials into ws_materials.
 
@@ -151,9 +150,10 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       data(lo_new_worksheet) = o_xl->add_new_worksheet( ).
 
       "titulo do worksheet
-      data(worksheet_title) = conv ZEXCEL_SHEET_TITLE( |Material_{ ws_materials-matnr }| ).
+      data(worksheet_title) = conv zexcel_sheet_title( |Material_{ ws_materials-matnr }| ).
       lo_new_worksheet->set_title( ip_title = worksheet_title ).
 
+      "construcao da primeira coluna
       lo_new_worksheet->get_style_cond( ip_guid = guid ).
       lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = guid ). " Número do material ip_style =
       lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = guid ). " Descrição do material
@@ -162,24 +162,25 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Total'       ip_style = guid ). " Saldo contábil
       lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Unidade'     ip_style = guid ). " Preço Unidade
 
-      lo_column = lo_new_worksheet->get_column( ip_column = 1 ).
-      lo_column->set_width( ip_width = 20 ).
-
-      lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
-      lo_column->set_width( ip_width = 20 ).
-
+      "construcao da segunda coluna
       lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value   = ws_materials-matnr ip_style = guid ). " Número do material
       lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value   = ws_materials-maktx ip_style = guid ). " Descrição do material
       lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value   = ws_materials-bwkey ip_style = guid ). " Chave de avaliação
       lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value   = ws_materials-lbkum ip_style = guid ). " Estoque
       lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value   = ws_materials-salk3 ip_style = guid ). " Saldo contábil
-      lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = '=B4 / B5'         ip_style = guid ). " Saldo contábil
+      lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = guid ). " Preço Unidade
 
+      "setup da primeira coluna
       lo_column = lo_new_worksheet->get_column( ip_column = 1 ).
+      lo_column->set_width( ip_width = 20 ).
+
+      "setup da segunda coluna
+      lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
       lo_column->set_width( ip_width = 20 ).
 
     endloop.
 
+    "setup da primeira sheet com visao geral da tabela inteira
     me->set_columns(  ).
 
     "----------------------------------------------------------------
@@ -334,27 +335,27 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_columns.
 
-    lo_column = lo_worksheet->get_column( ip_column = 'A' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'A' ).
+    lo_column->set_width( ip_width = 20 ).
 
-    lo_column = lo_worksheet->get_column( ip_column = 'B' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'B' ).
+    lo_column->set_width( ip_width = 20 ).
     lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
-    lo_column = lo_worksheet->get_column( ip_column = 'C' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'C' ).
+    lo_column->set_width( ip_width = 20 ).
     lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
-    lo_column = lo_worksheet->get_column( ip_column = 'D' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'D' ).
+    lo_column->set_width( ip_width = 20 ).
     lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
-    lo_column = lo_worksheet->get_column( ip_column = 'E' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'E' ).
+    lo_column->set_width( ip_width = 20 ).
     lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
-    lo_column = lo_worksheet->get_column( ip_column = 'F' ). "Ajusta a coluna A
-    lo_column->set_width( ip_width = 20 ). "Define a largura da coluna A como 200 unidades
+    lo_column = lo_worksheet->get_column( ip_column = 'F' ).
+    lo_column->set_width( ip_width = 20 ).
     lo_column->set_column_style_by_guid( ip_style_guid = guid ).
 
   endmethod.
@@ -366,34 +367,33 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_style.
 
-      create object me->lo_style.
+    create object me->lo_style.
 
-      me->lo_style->font->name = 'Arial'.            " Definir a fonte como Arial
-      me->lo_style->font->size = 12.                 " Definir o tamanho da fonte
-      me->lo_style->font->bold = abap_true.          " Definir a fonte como negrito
-      me->lo_style->font->italic = abap_true.        " Sem itálico
-      me->lo_style->font->color = 'FF0000'.          " Definir a cor da fonte como vermelha
+    me->lo_style->font->name = 'Arial'.            " Definir a fonte como Arial
+    me->lo_style->font->size = 12.                 " Definir o tamanho da fonte
+    me->lo_style->font->bold = abap_true.          " Definir a fonte como negrito
+    me->lo_style->font->italic = abap_true.        " Sem itálico
+    me->lo_style->font->color = 'FF0000'.          " Definir a cor da fonte como vermelha
 
-      me->lo_style->fill->filltype = 'solid'.        " Preenchimento sólido
-      me->lo_style->fill->fgcolor = 'FFFF00'.        " Cor de preenchimento amarelo
-      me->lo_style->fill->bgcolor = '000000'.        " Cor de fundo preta
+    me->lo_style->fill->filltype = 'solid'.        " Preenchimento sólido
+    me->lo_style->fill->fgcolor = 'FFFF00'.        " Cor de preenchimento amarelo
+    me->lo_style->fill->bgcolor = '000000'.        " Cor de fundo preta
 
-      data c_border_medium type zexcel_border value 'medium'. "#EC NOTEXT.
+    constants c_border_medium type zexcel_border value 'medium'. "#EC NOTEXT.
+    me->lo_style->borders->allborders = c_border_medium.
 
-*     lo_style->borders->allborders = C_BORDER_MEDIUM.
+    me->lo_style->alignment->horizontal = 'center'. " Alinhamento centralizado horizontalmente
+    me->lo_style->alignment->vertical   = 'center'.  " Alinhamento centralizado verticalmente
 
-      me->lo_style->alignment->horizontal = 'center'. " Alinhamento centralizado horizontalmente
-      me->lo_style->alignment->vertical   = 'center'.  " Alinhamento centralizado verticalmente
-
-      me->lo_style->number_format->format_code = '#,##0.00 [$R$-416];[RED]-#,##0.00 [$R$-416]'.
+    me->lo_style->number_format->format_code = '#,##0.00 [$R$-416];[RED]-#,##0.00 [$R$-416]'.
 
 *      lo_style->protection->locked = abap_true.   " Bloquear a célula
 
-      guid = lo_style->get_guid( ).
+    guid = lo_style->get_guid( ).
 
-      me->o_xl->add_new_style(
-          ip_guid = me->guid
-      ).
+    me->o_xl->add_new_style(
+        ip_guid = me->guid
+    ).
 
   endmethod.
 
