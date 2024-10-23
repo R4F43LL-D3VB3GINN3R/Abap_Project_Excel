@@ -49,22 +49,22 @@ class zcl_excel_builder definition
     methods download_xls .
   protected section.
 
-  private section.
+private section.
 
-    methods convert_xstring .
-    methods set_main_table .
-    methods append_extension
-      importing
-        !old_extension type string
-      exporting
-        !new_extension type string .
-    methods get_file_directory
-      importing
-        !filename  type string
-      exporting
-        !full_path type string .
-    methods set_style .
-    methods set_sheets.
+  methods CONVERT_XSTRING .
+  methods SET_MAIN_TABLE .
+  methods APPEND_EXTENSION
+    importing
+      !OLD_EXTENSION type STRING
+    exporting
+      !NEW_EXTENSION type STRING .
+  methods GET_FILE_DIRECTORY
+    importing
+      !FILENAME type STRING
+    exporting
+      !FULL_PATH type STRING .
+  methods SET_STYLE .
+  methods SET_SHEETS .
 ENDCLASS.
 
 
