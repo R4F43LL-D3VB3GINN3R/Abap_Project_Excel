@@ -161,6 +161,13 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
       if tp_style_bold_center_guid is not initial.
 
+        "tratamento da formula para campos com valores zero
+        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
+          unit_price = '0'.
+        else.
+          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
+        endif.
+
         "construcao da primeira coluna
         lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
         lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
