@@ -23,9 +23,7 @@ class zcl_event_handler implementation.
 
     case sy-ucomm.
       when 'EXPORT'.
-
         ol_excel->download_xls( ).
-
     endcase.
 
   endmethod.
