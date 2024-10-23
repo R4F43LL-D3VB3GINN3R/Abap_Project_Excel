@@ -133,10 +133,10 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     "cria objeto excel
     create object o_xl.
 
-    "converte dados para xstring
-    me->convert_xstring( ).
     "insere o estilo
     me->set_style( ).
+    "converte dados para xstring
+    me->convert_xstring( ).
 
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
@@ -153,8 +153,9 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       data(worksheet_title) = conv zexcel_sheet_title( |Material_{ ws_materials-matnr }| ).
       lo_new_worksheet->set_title( ip_title = worksheet_title ).
 
+      if guid is not initial.
+
       "construcao da primeira coluna
-      lo_new_worksheet->get_style_cond( ip_guid = guid ).
       lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = guid ). " Número do material ip_style =
       lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = guid ). " Descrição do material
       lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = guid ). " Chave de avaliação
@@ -178,7 +179,17 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
       lo_column = lo_new_worksheet->get_column( ip_column = 2 ).
       lo_column->set_width( ip_width = 20 ).
 
+      endif.
+
     endloop.
+
+    lo_new_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value   = 'aaaaaaa' ).
+    lo_new_worksheet->set_cell_style(
+      exporting
+        ip_column = 'A'
+        ip_row    = 7
+        ip_style  = guid
+    ).
 
     "setup da primeira sheet com visao geral da tabela inteira
     me->set_columns(  ).
@@ -309,12 +320,6 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     endif.
 
-**    insere a formula da celula na tabela
-*    loop at wt_materials into ws_materials.
-*      ws_materials-valor_unitario = '=C7 / C8'.
-*      modify wt_materials from ws_materials.
-*    endloop.
-
     materials = me->wt_materials. "tabela recebe objeto de classe.
 
     "retorno da consulta
@@ -334,6 +339,10 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method set_columns.
+
+   "titulo do worksheet
+    data(worksheet_title) = conv zexcel_sheet_title( |Materiais| ).
+    lo_worksheet->set_title( ip_title = worksheet_title ).
 
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
     lo_column->set_width( ip_width = 20 ).
@@ -368,6 +377,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
   method set_style.
 
     create object me->lo_style.
+    me->o_xl->add_new_style( ip_guid = me->guid ).
 
     me->lo_style->font->name = 'Arial'.            " Definir a fonte como Arial
     me->lo_style->font->size = 12.                 " Definir o tamanho da fonte
@@ -396,9 +406,5 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 *      lo_style->protection->locked = abap_true.   " Bloquear a célula
 
     guid = lo_style->get_guid( ).
-
-    me->o_xl->add_new_style(
-        ip_guid = me->guid
-    ).
 
   endmethod.
