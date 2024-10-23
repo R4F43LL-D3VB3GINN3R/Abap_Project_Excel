@@ -47,7 +47,6 @@ class zcl_excel_builder definition
         !materials  type zmat_tt
         !e_result   type zrla_result .
     methods download_xls .
-    methods set_sheets.
   protected section.
 
   private section.
@@ -65,11 +64,12 @@ class zcl_excel_builder definition
       exporting
         !full_path type string .
     methods set_style .
-endclass.
+    methods set_sheets.
+ENDCLASS.
 
 
 
-class zcl_excel_builder implementation.
+CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -484,4 +484,4 @@ class zcl_excel_builder implementation.
     " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
     " de código VBA associado.
   endmethod.
-endclass.
+ENDCLASS.
