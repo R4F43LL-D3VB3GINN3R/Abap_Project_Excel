@@ -56,18 +56,21 @@ data: lo_alv           type ref to cl_salv_table,
       lo_alv_column    type ref to cl_salv_column,
       lo_alv_display   type ref to cl_salv_display_settings.
 
+"classe de eventos
 data: lo_events type ref to cl_salv_events_table.
 
 "outros
 *&---------------------------------------------------------------------*
 
-data: result type zrla_result.
+data: result type zrla_result. "estrutura para resultado de operacoes
 
 "dados inicializados como...
 *&---------------------------------------------------------------------*
 
 *adicionar ajuda de pesquisa (F4) ao select-options
 at selection-screen on value-request for p_matnr.
+
+  if it_mat_id is not initial.
 
   call function 'F4IF_INT_TABLE_VALUE_REQUEST'
     exporting
@@ -81,9 +84,17 @@ at selection-screen on value-request for p_matnr.
       no_values_found = 2
       others          = 3.
 
-  "leitura dos dados para funcao enquanto menu de selecao
-  read table it_return into ls_return index 1.
-  p_matnr = ls_return-fieldval.
+  endif.
+
+  if sy-subrc eq 0.
+
+    "leitura dos dados para funcao enquanto menu de selecao
+    read table it_return into ls_return index 1.
+    p_matnr = ls_return-fieldval.
+
+  else.
+    return.
+  endif.
 
 initialization.
 
