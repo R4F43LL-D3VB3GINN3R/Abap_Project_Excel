@@ -47,6 +47,7 @@ class zcl_excel_builder definition
         !materials  type zmat_tt
         !e_result   type zrla_result .
     methods download_xls .
+    methods set_sheets.
   protected section.
 
   private section.
@@ -64,11 +65,11 @@ class zcl_excel_builder definition
       exporting
         !full_path type string .
     methods set_style .
-ENDCLASS.
+endclass.
 
 
 
-CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
+class zcl_excel_builder implementation.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -142,59 +143,12 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     me->set_style( ).
     "converte dados para xstring
     me->convert_xstring( ).
+    "insere paginacoes
+    me->set_sheets( ).
 
     "cria um worksheet
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
-
-    data: unit_price type string value '=B4 / B5'. "define uma formula excel
-
-    "itera sobre a tabela principal e monta as celulas do excel
-    loop at me->wt_materials into ws_materials.
-
-      "adiciona um novo worksheet para cada iteracao
-      data(lo_new_worksheet) = o_xl->add_new_worksheet( ).
-
-      "titulo do worksheet
-      data(worksheet_title) = conv zexcel_sheet_title( |Material_{ ws_materials-matnr }| ).
-      lo_new_worksheet->set_title( ip_title = worksheet_title ).
-
-      if tp_style_bold_center_guid is not initial.
-
-        "tratamento da formula para campos com valores zero
-        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
-          unit_price = '0'.
-        else.
-          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
-        endif.
-
-        "construcao da primeira coluna
-        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
-        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
-        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
-        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Stock'       ip_style = tp_style_bold_center_guid ). " Estoque
-        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Total'       ip_style = tp_style_bold_center_guid ). " Saldo contábil
-        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Unidade'     ip_style = tp_style_bold_center_guid ). " Preço Unidade
-
-        "construcao da segunda coluna
-        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
-        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value   = ws_materials-maktx ip_style = tp_style_bold_center_guid2 ). " Descrição do material
-        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
-        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value   = ws_materials-lbkum ip_style = tp_style_bold_center_guid2 ). " Estoque
-        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
-        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
-
-        "setup da primeira coluna
-        lo_column = lo_new_worksheet->get_column( ip_column = 'A' ).
-        lo_column->set_width( ip_width = 20 ).
-
-        "setup da segunda coluna
-        lo_column = lo_new_worksheet->get_column( ip_column = 'B' ).
-        lo_column->set_width( ip_width = 20 ).
-
-      endif.
-
-    endloop.
 
     "setup da primeira sheet com visao geral da tabela inteira
     me->set_columns(  ).
@@ -379,6 +333,64 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->SET_SHEETS
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method set_sheets.
+
+    data: unit_price type string value '=B4 / B5'. "define uma formula excel
+
+    "itera sobre a tabela principal e monta as celulas do excel
+    loop at me->wt_materials into ws_materials.
+
+      "adiciona um novo worksheet para cada iteracao
+      data(lo_new_worksheet) = o_xl->add_new_worksheet( ).
+
+      "titulo do worksheet
+      data(worksheet_title) = conv zexcel_sheet_title( |Material_{ ws_materials-matnr }| ).
+      lo_new_worksheet->set_title( ip_title = worksheet_title ).
+
+      if tp_style_bold_center_guid is not initial.
+
+        "tratamento da formula para campos com valores zero
+        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
+          unit_price = '0'.
+        else.
+          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
+        endif.
+
+        "construcao da primeira coluna
+        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
+        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Descrição'   ip_style = tp_style_bold_center_guid ). " Descrição do material
+        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Área'        ip_style = tp_style_bold_center_guid ). " Chave de avaliação
+        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Stock'       ip_style = tp_style_bold_center_guid ). " Estoque
+        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Total'       ip_style = tp_style_bold_center_guid ). " Saldo contábil
+        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Unidade'     ip_style = tp_style_bold_center_guid ). " Preço Unidade
+
+        "construcao da segunda coluna
+        lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
+        lo_new_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value   = ws_materials-maktx ip_style = tp_style_bold_center_guid2 ). " Descrição do material
+        lo_new_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
+        lo_new_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value   = ws_materials-lbkum ip_style = tp_style_bold_center_guid2 ). " Estoque
+        lo_new_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
+        lo_new_worksheet->set_cell( ip_row = 6 ip_column = 'B' ip_formula = unit_price         ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
+
+        "setup da primeira coluna
+        lo_column = lo_new_worksheet->get_column( ip_column = 'A' ).
+        lo_column->set_width( ip_width = 20 ).
+
+        "setup da segunda coluna
+        lo_column = lo_new_worksheet->get_column( ip_column = 'B' ).
+        lo_column->set_width( ip_width = 20 ).
+
+      endif.
+
+    endloop.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER->SET_STYLE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -472,4 +484,4 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
     " de código VBA associado.
   endmethod.
-ENDCLASS.
+endclass.
