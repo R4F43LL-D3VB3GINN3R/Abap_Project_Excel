@@ -47,8 +47,10 @@ class zcl_excel_builder definition
         !materials  type zmat_tt
         !e_result   type zrla_result .
     methods download_xls .
+    methods display_fast_excel
+      importing i_table_content type ref to data
+                i_table_name    type string.
   protected section.
-
   private section.
 
     methods convert_xstring .
@@ -65,11 +67,12 @@ class zcl_excel_builder definition
         !full_path type string .
     methods set_style .
     methods set_sheets .
-endclass.
+
+ENDCLASS.
 
 
 
-class zcl_excel_builder implementation.
+CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -104,6 +107,107 @@ class zcl_excel_builder implementation.
     "tratamento de erros
     if sy-subrc ne 0.
       message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
+      return.
+    endif.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER->DISPLAY_FAST_EXCEL
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_TABLE_CONTENT                TYPE REF TO DATA
+* | [--->] I_TABLE_NAME                   TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method display_fast_excel.
+
+    " Tipo de dados generico
+    data: lr_table type ref to data.
+
+    " Instanciar esse tipo de dados em runtime para ser uma tabela do tipo (i_table_name)
+    create data lr_table type table of (i_table_name).
+
+    " Preencher a tabela do método com o conteudo que vem no parametro
+    lr_table = i_table_content.
+
+    " Como foi criada por referência ao tipo genérico "data" não dá para aceder diretamente
+    " Usar field symbol e apontar o conteudo da tabela (->*) para o field symbol
+    field-symbols: <lit_table> type any table.
+    assign lr_table->* to <lit_table>.
+
+    " A tabela agora é o <lit_table> e podem-se fazer as operações normais
+*    loop at <lit_table> assigning field-symbol(<lwa_table_line>).
+*    endloop.
+
+    "tratamento de nome e extensão do arquivo
+    data full_path type string.
+    data namefile type string.
+
+    namefile = 'file'.
+
+    "metodo que salva nome e diretorio
+    me->get_file_directory(
+      exporting
+        filename  = namefile
+      importing
+        full_path = full_path
+    ).
+
+    "se o download for cancelado...
+    if full_path is initial.
+      message 'O download foi cancelado pelo usuário.' type 'S' display like 'E'.
+      return.
+    endif.
+
+    "----------------------------------------------------------------
+
+    create object o_xl. "cria objeto excel
+
+    data: it_data type table of sflight.
+    select * from sflight into table it_data.
+
+    create object o_converter.
+
+    "converte os dados para o formato Excel
+    o_converter->convert(
+      exporting
+        it_table      = <lit_table>
+      changing
+        co_excel      = me->o_xl
+    ).
+
+    "cria um worksheet
+    data(o_xl_ws) = o_xl->get_active_worksheet( ).
+    lo_worksheet = o_xl_ws.
+
+    "----------------------------------------------------------------
+
+    "inicia o escritor do arquivo
+    data(o_xlwriter)  = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
+    data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
+    data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
+
+    "----------------------------------------------------------------
+
+    "download do arquivo Excel
+    try.
+        cl_gui_frontend_services=>gui_download(
+          exporting
+            filename     = full_path
+            filetype     = 'BIN'
+            bin_filesize = xstrlen( lv_xl_xdata )
+          changing
+            data_tab     = it_raw_data
+        ).
+      catch cx_root into data(ex_txt).
+        write: / ex_txt->get_text( ).
+    endtry.
+
+    "----------------------------------------------------------------
+
+    "tratamento de erros
+    if sy-subrc ne 0.
+      message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
       return.
     endif.
 
@@ -327,11 +431,7 @@ class zcl_excel_builder implementation.
       if tp_style_bold_center_guid is not initial.
 
         "tratamento da formula para campos com valores zero
-        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
-          unit_price_formula = '0'.
-        else.
-          unit_price_formula = '=ROUND(D' && lv_index && '/' && 'E' && lv_index && ', 2)'. "resultado da operacao de divisao com duas casas decimais
-        endif.
+        unit_price_formula = '=ROUND(D' && lv_index && '+' && 'E' && lv_index && ', 2)'. "resultado da soma das células
 
         "construcao das linhas
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
@@ -396,12 +496,7 @@ class zcl_excel_builder implementation.
 
       if tp_style_bold_center_guid is not initial.
 
-        "tratamento da formula para campos com valores zero
-        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
-          unit_price = '0'.
-        else.
-          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
-        endif.
+        unit_price = '=ROUND(B4 + B5, 2)'. "resultado da operacao de soma com duas casas decimais
 
         "construcao da primeira coluna
         lo_new_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Nº Material' ip_style = tp_style_bold_center_guid ). " Número do material
@@ -528,4 +623,4 @@ class zcl_excel_builder implementation.
     " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
     " de código VBA associado.
   endmethod.
-endclass.
+ENDCLASS.
