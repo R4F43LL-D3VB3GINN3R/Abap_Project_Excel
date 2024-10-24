@@ -174,7 +174,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     "----------------------------------------------------------------
 
-    " Tratamento de erros.
+    "tratamento de erros
     if sy-subrc ne 0.
       message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
       return.
@@ -318,17 +318,20 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     data: lv_index type i.
     lv_index = 2.
 
+    "formula
+    data: unit_price_formula type string.
+
      "itera sobre a tabela principal e monta as celulas do excel
     loop at me->wt_materials into ws_materials.
 
       if tp_style_bold_center_guid is not initial.
 
-*        "tratamento da formula para campos com valores zero
-*        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
-*          unit_price = '0'.
-*        else.
-*          unit_price = '=ROUND(B4 / B5, 2)'. "resultado da operacao de divisao com duas casas decimais
-*        endif.
+        "tratamento da formula para campos com valores zero
+        if ws_materials-lbkum eq 0 or ws_materials-salk3 eq 0.
+          unit_price_formula = '0'.
+        else.
+          unit_price_formula = '=ROUND(D' && lv_index && '/' && 'E' && lv_index && ', 2)'. "resultado da operacao de divisao com duas casas decimais
+        endif.
 
         "construcao das linhas
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value   = ws_materials-matnr ip_style = tp_style_bold_center_guid2 ). " Número do material
@@ -336,7 +339,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value   = ws_materials-bwkey ip_style = tp_style_bold_center_guid2 ). " Chave de avaliação
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value   = ws_materials-lbkum ip_style = tp_style_bold_center_guid2 ). " Estoque
         lo_worksheet->set_cell( ip_row = lv_index ip_column = 'E' ip_value   = ws_materials-salk3 ip_style = tp_style_bold_center_guid2 ). " Saldo contábil
-        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'F' ip_formula = '0'                ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
+        lo_worksheet->set_cell( ip_row = lv_index ip_column = 'F' ip_formula = unit_price_formula ip_style = tp_style_bold_center_guid2 ). " Preço Unidade
 
         add 1 to lv_index. "incrementa para a proxima linha
 
