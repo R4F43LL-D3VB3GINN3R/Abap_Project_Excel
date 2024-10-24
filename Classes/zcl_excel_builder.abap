@@ -49,27 +49,27 @@ class zcl_excel_builder definition
     methods download_xls .
   protected section.
 
-private section.
+  private section.
 
-  methods CONVERT_XSTRING .
-  methods SET_MAIN_TABLE .
-  methods APPEND_EXTENSION
-    importing
-      !OLD_EXTENSION type STRING
-    exporting
-      !NEW_EXTENSION type STRING .
-  methods GET_FILE_DIRECTORY
-    importing
-      !FILENAME type STRING
-    exporting
-      !FULL_PATH type STRING .
-  methods SET_STYLE .
-  methods SET_SHEETS .
-ENDCLASS.
+    methods convert_xstring .
+    methods set_main_table .
+    methods append_extension
+      importing
+        !old_extension type string
+      exporting
+        !new_extension type string .
+    methods get_file_directory
+      importing
+        !filename  type string
+      exporting
+        !full_path type string .
+    methods set_style .
+    methods set_sheets .
+endclass.
 
 
 
-CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
+class zcl_excel_builder implementation.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -91,21 +91,21 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method convert_xstring.
 
-      create object o_converter.
+    create object o_converter.
 
-      "converte os dados para o formato Excel
-      o_converter->convert(
-        exporting
-          it_table      = me->wt_materials
-        changing
-          co_excel      = me->o_xl
-      ).
+    "converte os dados para o formato Excel
+    o_converter->convert(
+      exporting
+        it_table      = me->wt_materials
+      changing
+        co_excel      = me->o_xl
+    ).
 
-      "tratamento de erros
-      if sy-subrc ne 0.
-        message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
-        return.
-      endif.
+    "tratamento de erros
+    if sy-subrc ne 0.
+      message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
+      return.
+    endif.
 
   endmethod.
 
@@ -138,16 +138,16 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
 
     "----------------------------------------------------------------
 
-      create object o_xl. "cria objeto excel
+    create object o_xl. "cria objeto excel
 
-      "insere o estilo
-      me->set_style( ).
-      "converte dados para xstring
-      me->convert_xstring( ).
-      "insere o worksheet com a tabela completa
-      me->set_main_table(  ).
-      "insere worksheets com cada linha da tabela individualmente
-      me->set_sheets( ).
+    "insere o estilo
+    me->set_style( ).
+    "converte dados para xstring
+    me->convert_xstring( ).
+    "insere o worksheet com a tabela completa
+    me->set_main_table(  ).
+    "insere worksheets com cada linha da tabela individualmente
+    me->set_sheets( ).
 
     "----------------------------------------------------------------
 
@@ -321,7 +321,7 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     "formula
     data: unit_price_formula type string.
 
-     "itera sobre a tabela principal e monta as celulas do excel
+    "itera sobre a tabela principal e monta as celulas do excel
     loop at me->wt_materials into ws_materials.
 
       if tp_style_bold_center_guid is not initial.
@@ -528,4 +528,4 @@ CLASS ZCL_EXCEL_BUILDER IMPLEMENTATION.
     " inserção ou atualização do projeto dentro do arquivo Excel, permitindo a execução
     " de código VBA associado.
   endmethod.
-ENDCLASS.
+endclass.
