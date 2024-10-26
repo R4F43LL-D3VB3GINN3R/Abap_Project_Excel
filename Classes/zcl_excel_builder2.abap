@@ -374,14 +374,17 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           e_result       = e_result.
 
       "cria a celula
-      lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid ).
+
+      lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
+      lo_column->set_width( ip_width = 20 ).
 
       add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
 
       lv_day = lv_strday. "casting int
       add 1 to lv_day.    "incrementa o dia
       lv_strday = lv_day. "casting string
-      concatenate '0' lv_strday into lv_strday. "adiciona o 0 ao dia
+      concatenate '0' lv_strday into lv_strday.   "adiciona o 0 ao dia
 
       clear lv_newdate.                                 "limpa a variavel
       lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
