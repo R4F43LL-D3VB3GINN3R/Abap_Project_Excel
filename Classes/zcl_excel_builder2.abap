@@ -5,9 +5,11 @@ class zcl_excel_builder2 definition
 
   public section.
 
-    types: begin of wa_col,
-             pernr type pernr-pernr,
-             sname type pa0002-cname,
+    types: begin of wa_COL,
+             pernr type pa0001-pernr, "Número Pessoal
+             sname type pa0002-cname, "Nome
+             vdsk1 type pa0001-vdsk1, "Chave de Organizacao
+             kostl type pa0001-kostl, "Centro de Custo
            end of wa_col.
     data:
       it_colaboradores type table of wa_col,
@@ -330,16 +332,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method get_data.
 
-    me->it_colaboradores = value #( ( pernr = 1  sname = 'Colaborador A' )
-                                    ( pernr = 2  sname = 'Colaborador B' )
-                                    ( pernr = 3  sname = 'Colaborador C' )
-                                    ( pernr = 4  sname = 'Colaborador D' )
-                                    ( pernr = 5  sname = 'Colaborador E' )
-                                    ( pernr = 6  sname = 'Colaborador F' )
-                                    ( pernr = 7  sname = 'Colaborador G' )
-                                    ( pernr = 8  sname = 'Colaborador H' )
-                                    ( pernr = 9  sname = 'Colaborador I' )
-                                    ( pernr = 10 sname = 'Colaborador J' ) ).
+    me->it_colaboradores = value #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
+                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
+                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
+                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
+                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
+                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
+                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
+                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
+                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
+                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
 
   endmethod.
 
@@ -394,37 +396,47 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | Instance Private Method ZCL_EXCEL_BUILDER2->SET_MAIN_TABLE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-method set_main_table.
+  method set_main_table.
 
-  data(o_xl_ws) = o_xl->get_active_worksheet( ).
-  lo_worksheet = o_xl_ws.
+    data(o_xl_ws) = o_xl->get_active_worksheet( ).
+    lo_worksheet = o_xl_ws.
 
-  "insere titulo na worksheet.
-  data: lv_title type zexcel_sheet_title. "titulo de worksheets
-  lv_title = 'Colaboradores'.
-  lo_worksheet->set_title( ip_title = lv_title ).
+    "insere titulo na worksheet.
+    data: lv_title type zexcel_sheet_title. "titulo de worksheets
+    lv_title = 'Colaboradores'.
+    lo_worksheet->set_title( ip_title = lv_title ).
 
-  data: lv_index type i.
-  lv_index = 2.
+    data: lv_index type i.
+    lv_index = 2.
 
-  "insere valores na dropdown
-  lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Número'      ip_style = tp_style_bold_center_guid ).
-  lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = 'Colaborador' ip_style = tp_style_bold_center_guid ).
-  loop at me->it_colaboradores into me->ls_colaborador.
-    lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value = ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
-    add 1 to lv_index. "incrementa o contador
-  endloop.
+    "cabeçalho da tabela
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'Número'          ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = 'Colaborador'     ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'C' ip_value = 'Equipa'          ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'D' ip_value = 'Centro de Custo' ip_style = tp_style_bold_center_guid ).
 
-  "setup da primeira coluna
-   lo_column = lo_worksheet->get_column( ip_column = 'A' ).
-   lo_column->set_width( ip_width = 30 ).
-   lo_column = lo_worksheet->get_column( ip_column = 'B' ).
-   lo_column->set_width( ip_width = 30 ).
+    "linhas da tabela
+    loop at me->it_colaboradores into me->ls_colaborador.
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value = ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value = ls_colaborador-vdsk1 ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value = ls_colaborador-kostl ip_style = tp_style_bold_center_guid2 ).
+      add 1 to lv_index. "incrementa o contador
+    endloop.
 
-  lv_index = 2. "reseta o contador
+    "setup das colunas
+    lo_column = lo_worksheet->get_column( ip_column = 'A' ).
+    lo_column->set_width( ip_width = 30 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'B' ).
+    lo_column->set_width( ip_width = 30 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'C' ).
+    lo_column->set_width( ip_width = 30 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'D' ).
+    lo_column->set_width( ip_width = 30 ).
 
-endmethod.
+    lv_index = 2. "reseta o contador
+
+  endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -437,24 +449,32 @@ endmethod.
     lv_title = 'Colaboradores'.
 
     "formulas usadas
-    data: lv_formula_name type zexcel_cell_formula,
-          lv_formula_num  type zexcel_cell_formula.
-    lv_formula_name = '=VLOOKUP(B3,Colaboradores!A2:B12,2)'. "procura por nome
-    lv_formula_num = '=VLOOKUP(B3,Colaboradores!A2:B12,1)'. "procura por id
+    data: lv_formula_pernr type zexcel_cell_formula,
+          lv_formula_sname type zexcel_cell_formula,
+          lv_formula_vdsk1 type zexcel_cell_formula,
+          lv_formula_kostl type zexcel_cell_formula.
+    lv_formula_pernr = '=VLOOKUP(B5,Colaboradores!A2:B12,1)'. "procura por id
+    lv_formula_sname = '=VLOOKUP(B5,Colaboradores!A2:B12,2)'. "procura por nome
+    lv_formula_vdsk1 = '=VLOOKUP(B5,Colaboradores!A2:C12,3)'. "procura por equipa
+    lv_formula_kostl = '=VLOOKUP(B5,Colaboradores!A2:D12,4)'. "procura por centro de custos
 
     "criando uma nova worksheet
     lo_worksheet = o_xl->add_new_worksheet( ).
     lo_worksheet->set_title( ip_title = | { lv_title } | ).
 
     "cabeçalho da nova sheet
-    lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'N.Mecan:' ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Nome:'    ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Procurar' ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'N.Mecan:'         ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Nome:'            ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Equipa:'          ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Centro de Custo:' ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Procurar'         ip_style = tp_style_bold_center_guid ).
 
     "cabeçalho da nova sheet
-    lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_num ).
-    lo_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_name ).
-    lo_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ).
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_pernr ).
+    lo_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_sname ).
+    lo_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_vdsk1 ).
+    lo_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_kostl ).
+    lo_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ).
 
     "setup da primeira coluna
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
@@ -477,7 +497,7 @@ endmethod.
     lo_data_validation              = lo_worksheet->add_new_data_validation( ).
     lo_data_validation->type        = zcl_excel_data_validation=>c_type_list.
     lo_data_validation->formula1    = 'CollaboratorNumbers'. "nome do range
-    lo_data_validation->cell_row    = 3.
+    lo_data_validation->cell_row    = 5.
     lo_data_validation->cell_column = 'B'.
     lo_data_validation->allowblank  = abap_true.
 
