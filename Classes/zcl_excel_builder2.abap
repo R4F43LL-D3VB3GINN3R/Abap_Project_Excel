@@ -59,6 +59,7 @@ class zcl_excel_builder2 definition
         !full_path type string .
     methods set_style .
     methods set_sheets .
+    methods generate_calendar.
 
 ENDCLASS.
 
@@ -325,6 +326,76 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GENERATE_CALENDAR
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method generate_calendar.
+
+    "buscando a quantidade de dias no mes
+    data: lv_date          type /osp/dt_date, "data enviada
+          lv_countdays     type /osp/dt_day,  "dias do mes recebidos
+          lv_countdays2    type i,            "dias do mes em inteiro
+          lv_counterdays   type i,            "contador de dias
+          lv_newdate       type sy-datum,     "nova data formatada
+          lv_stringdaydate type string,       "dia formatado
+          lv_day           type i,            "dia em inteiro
+          lv_strday        type string.       "dia em string
+
+    lv_date = sy-datum.
+
+    "funcao retorna a quantidade de dias do mes
+    call function '/OSP/GET_DAYS_IN_MONTH'
+      exporting
+        iv_date = lv_date
+      importing
+        ev_days = lv_countdays.
+
+    lv_countdays2 = lv_countdays. "casting int
+    lv_counterdays = 5.           "inicia o contador
+
+    "-------------------------------------------
+
+    "reseta a data
+    lv_newdate = lv_date+0(6). "recebe ano + mes
+    lv_strday = '01'.          "sempre começamos pelo primeiro dia do mes
+
+    "junta ano + mes e primeiro dia do mes
+    concatenate lv_newdate lv_strday into lv_newdate.
+
+    "repete a quantidade de dias que tem o mes
+    do lv_countdays times.
+
+      "funcao retorna a data formatada
+      call function 'ZWEEKDATE'
+        exporting
+          date           = lv_newdate
+        importing
+          format_daydate = lv_stringdaydate
+          e_result       = e_result.
+
+      "cria a celula
+      lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid2 ).
+
+      add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
+
+      lv_day = lv_strday. "casting int
+      add 1 to lv_day.    "incrementa o dia
+      lv_strday = lv_day. "casting string
+      concatenate '0' lv_strday into lv_strday. "adiciona o 0 ao dia
+
+      clear lv_newdate.                                 "limpa a variavel
+      lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
+      concatenate lv_newdate lv_strday into lv_newdate. "redefine a data para o dia seguinte.
+
+    enddo.
+
+    lv_counterdays = 5. "reseta o contador
+    clear: lv_day, lv_strday. "limpa os contadores de dias em string e int.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->GET_DATA
 * +-------------------------------------------------------------------------------------------------+
 * | [<---] COLABORADORES                  TYPE        ZCOL_TT
@@ -462,25 +533,53 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_worksheet = o_xl->add_new_worksheet( ).
     lo_worksheet->set_title( ip_title = | { lv_title } | ).
 
-    "cabeçalho da nova sheet
+    "------------------------------------------------------------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------------------------------------------------
+
+    "nomes dos campos do cabeçalho
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'N.Mecan:'         ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Nome:'            ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Equipa:'          ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Centro de Custo:' ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Procurar'         ip_style = tp_style_bold_center_guid ).
+*    lo_worksheet->set_cell( ip_row = 5 ip_column = 'A' ip_value = 'Procurar'         ip_style = tp_style_bold_center_guid ).
 
-    "cabeçalho da nova sheet
+    "nomes das linhas do cabeçalho
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_pernr ).
     lo_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_sname ).
     lo_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_vdsk1 ).
     lo_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_kostl ).
-    lo_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ).
+*    lo_worksheet->set_cell( ip_row = 5 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ).
+
+    "------------------------------------------------------------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------------------------------------------------
+
+    "cabeçalho das horas trabalhadas
+    lo_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Dia / Mês'         ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
+
+    "totais de horas trabalhadas
+    lo_worksheet->set_cell( ip_row = 6 ip_column = 'D' ip_value = 'Totais' ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 7 ip_column = 'D' ip_value = ''       ip_style = tp_style_bold_center_guid2 ).
+    lo_worksheet->set_cell( ip_row = 8 ip_column = 'D' ip_value = ''       ip_style = tp_style_bold_center_guid2 ).
+
+    "------------------------------------------------------------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------------------------------------------------
+
+    "calendários do excel
+
+     me->generate_calendar( ). "gerador do calendario do excel.
+
+    "------------------------------------------------------------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------------------------------------------------
 
     "setup da primeira coluna
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
     lo_column->set_width( ip_width = 30 ).
     lo_column = lo_worksheet->get_column( ip_column = 'B' ).
     lo_column->set_width( ip_width = 50 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'D' ).
+    lo_column->set_width( ip_width = 20 ).
 
     "range
     data(lo_range) = o_xl->add_new_range( ).
