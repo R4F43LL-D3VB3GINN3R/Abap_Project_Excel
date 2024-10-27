@@ -10,7 +10,7 @@ class zcl_excel_builder2 definition
              sname type pa0002-cname, "Nome
              vdsk1 type pa0001-vdsk1, "Chave de Organizacao
              kostl type pa0001-kostl, "Centro de Custo
-           end of wa_col.
+           end of wa_col   .
     data:
       it_colaboradores type table of wa_col,
       ls_colaborador   type wa_col.
