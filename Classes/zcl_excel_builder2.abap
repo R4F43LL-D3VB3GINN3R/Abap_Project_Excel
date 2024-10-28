@@ -5,18 +5,20 @@ class zcl_excel_builder2 definition
 
   public section.
 
-    types: begin of wa_COL,
+    types: begin of wa_col,
              pernr type pa0001-pernr, "Número Pessoal
              sname type pa0002-cname, "Nome
              vdsk1 type pa0001-vdsk1, "Chave de Organizacao
              kostl type pa0001-kostl, "Centro de Custo
-           end of wa_col   .
+           end of wa_col.
     data:
       it_colaboradores type table of wa_col,
       ls_colaborador   type wa_col.
 
     data: tt_colaboradores type zcol_tt,
           st_colaborador   type zcol_st.
+
+    data: total_planeadas type string.
 
     data e_result type zrla_result .
 
@@ -46,7 +48,7 @@ class zcl_excel_builder2 definition
   protected section.
   private section.
     methods convert_xstring .
-    methods set_main_table .
+    methods set_database .
     methods append_extension
       importing
         !old_extension type string
@@ -87,21 +89,33 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method convert_xstring.
 
-    create object o_converter.
+    data: lx_error      type ref to cx_root,  "define uma referência para exceções
+          lv_error_text type string.          "define uma variável para o texto do erro
 
-    "converte os dados para o formato Excel
-    o_converter->convert(
-      exporting
-        it_table      = me->it_colaboradores
-      changing
-        co_excel      = me->o_xl
-    ).
+    try.
+        "cria o objeto para o conversor
+        create object o_converter.
 
-    "tratamento de erros
-    if sy-subrc ne 0.
-      message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
-      return.
-    endif.
+        "converte os dados para o formato Excel
+        o_converter->convert(
+          exporting
+            it_table = me->it_colaboradores
+          changing
+            co_excel = me->o_xl
+        ).
+
+        "verificação de erros na conversão
+        if sy-subrc ne 0.
+          message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
+          return.
+        endif.
+
+      catch cx_root into lx_error.
+        lv_error_text = lx_error->if_message~get_text( ).
+        message lv_error_text type 'S' display like 'E'.
+        return.
+    endtry.
+
 
   endmethod.
 
@@ -139,13 +153,29 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "converte para xstring
     "-------------------------------------------------------------------------------
 
-    "converte os dados para o formato Excel
-    o_converter->convert(
-      exporting
-        it_table      = <lit_table>
-      changing
-        co_excel      = me->o_xl
-    ).
+    data: lx_error      type ref to cx_root,       "define uma referência para exceções
+          lv_error_text type string.          "define uma variável para o texto do erro
+
+    try.
+        "converte os dados para o formato Excel
+        o_converter->convert(
+          exporting
+            it_table      = <lit_table>
+          changing
+            co_excel      = me->o_xl
+        ).
+
+        " Verificação de erros na conversão
+        if sy-subrc ne 0.
+          message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
+          return.
+        endif.
+
+      catch cx_root into lx_error.
+        lv_error_text = lx_error->if_message~get_text( ).
+        message lv_error_text type 'S' display like 'E'.
+        return.
+    endtry.
 
     "cria um worksheet
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
@@ -236,8 +266,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           changing
             data_tab     = it_raw_data
         ).
-      catch cx_root into data(ex_txt).
-        write: / ex_txt->get_text( ).
+      catch cx_root into lx_error.
+        lv_error_text = lx_error->if_message~get_text( ).
+        message lv_error_text type 'S' display like 'E'.
+        return.
     endtry.
 
     "-------------------------------------------------------------------------------
@@ -287,7 +319,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "converte dados para xstring
     me->convert_xstring( ).
     "insere o worksheet com a tabela completa
-    me->set_main_table(  ).
+    me->set_database(  ).
     "insere worksheets com cada linha da tabela individualmente
     me->set_sheets( ).
 
@@ -341,7 +373,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           lv_day           type i,            "dia em inteiro
           lv_strday        type string.       "dia em string
 
-    lv_date = sy-datum.
+    lv_date = sy-datum. "recebe a data atual
 
     "funcao retorna a quantidade de dias do mes
     call function '/OSP/GET_DAYS_IN_MONTH'
@@ -351,7 +383,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ev_days = lv_countdays.
 
     lv_countdays2 = lv_countdays. "casting int
-    lv_counterdays = 5.           "inicia o contador
+    lv_counterdays = 5.           "inicia o contador como cinco para contar a partir da 5th coluna
 
     "-------------------------------------------
 
@@ -362,10 +394,17 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "junta ano + mes e primeiro dia do mes
     concatenate lv_newdate lv_strday into lv_newdate.
 
+    "formula para somar horas planeadas
+    total_planeadas = '=SUM(E7:AI7)'. "formula para somar horas a trabalhar
+
+    "rever as horas trabalhadas conforme consulta - aguardar info adicional
+    data: horas_planeadas type p decimals 2.
+    horas_planeadas = '8'.
+
     "repete a quantidade de dias que tem o mes
     do lv_countdays times.
 
-      "funcao retorna a data formatada
+      "funcao retorna a data formatada [ numdia + nomediasemana ]
       call function 'ZWEEKDATE'
         exporting
           date           = lv_newdate
@@ -373,26 +412,44 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           format_daydate = lv_stringdaydate
           e_result       = e_result.
 
-      "cria a celula
-      lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid ).
+      if sy-subrc eq 0.
 
-      lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
-      lo_column->set_width( ip_width = 20 ).
+        "verifica se é sábado ou domingo para nao contabilizar as horas.
+        if lv_stringdaydate cs 'Sábado' or lv_stringdaydate cs 'Domingo'.
+          horas_planeadas = '0'.
+        else.
+          horas_planeadas = '8'.
+        endif.
 
-      add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
+        "cria a celula
+        lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid  ). "cabeçalho do calendário
+        lo_worksheet->set_cell( ip_row = 7 ip_column = lv_counterdays ip_value = horas_planeadas  ip_style = tp_style_bold_center_guid2 ). "horas planeadas
+        lo_worksheet->set_cell( ip_row = 8 ip_column = lv_counterdays ip_value = ''               ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
 
-      lv_day = lv_strday. "casting int
-      add 1 to lv_day.    "incrementa o dia
-      lv_strday = lv_day. "casting string
-      concatenate '0' lv_strday into lv_strday.   "adiciona o 0 ao dia
+        "setup da coluna para cada celula criada
+        lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
+        lo_column->set_width( ip_width = 20 ).
 
-      clear lv_newdate.                                 "limpa a variavel
-      lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
-      concatenate lv_newdate lv_strday into lv_newdate. "redefine a data para o dia seguinte.
+        add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
+
+        lv_day = lv_strday. "casting int
+        add 1 to lv_day.    "incrementa o dia
+        lv_strday = lv_day. "casting string
+
+        "se nao passamos dos 10 primeiros dias do mês
+        if lv_day lt 10.
+          concatenate '0' lv_strday into lv_strday. "adiciona o 0 na frente do numero
+        endif.
+
+        clear lv_newdate.                                 "limpa a variavel
+        lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
+        concatenate lv_newdate lv_strday into lv_newdate. "redefine a data para o dia seguinte.
+
+      endif.
 
     enddo.
 
-    lv_counterdays = 5. "reseta o contador
+    lv_counterdays = 5. "reseta o contador para a 5th coluna
     clear: lv_day, lv_strday. "limpa os contadores de dias em string e int.
 
   endmethod.
@@ -467,10 +524,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_MAIN_TABLE
+* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_DATABASE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_main_table.
+  method set_database.
 
     data(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
@@ -556,22 +613,30 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "------------------------------------------------------------------------------------------------------------------------------------------
     "------------------------------------------------------------------------------------------------------------------------------------------
 
+    "calendários do excel
+
+    me->generate_calendar( ). "gerador do calendario do excel.
+
+    "------------------------------------------------------------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------------------------------------------------
+
     "cabeçalho das horas trabalhadas
     lo_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Dia / Mês'         ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
 
     "totais de horas trabalhadas
-    lo_worksheet->set_cell( ip_row = 6 ip_column = 'D' ip_value = 'Totais' ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 7 ip_column = 'D' ip_value = ''       ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = 8 ip_column = 'D' ip_value = ''       ip_style = tp_style_bold_center_guid2 ).
+    lo_worksheet->set_cell( ip_row = 6 ip_column = 'D' ip_value = 'Totais'                              ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 7 ip_column = 'D' ip_value = ''       ip_formula = total_planeadas ip_style = tp_style_bold_center_guid2 ).
+    lo_worksheet->set_cell( ip_row = 8 ip_column = 'D' ip_value = ''                                    ip_style = tp_style_bold_center_guid2 ).
 
     "------------------------------------------------------------------------------------------------------------------------------------------
     "------------------------------------------------------------------------------------------------------------------------------------------
 
-    "calendários do excel
+    "horas planeadas e trabalhadas
 
-     me->generate_calendar( ). "gerador do calendario do excel.
+    lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
+    lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
 
     "------------------------------------------------------------------------------------------------------------------------------------------
     "------------------------------------------------------------------------------------------------------------------------------------------
@@ -584,7 +649,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_column = lo_worksheet->get_column( ip_column = 'D' ).
     lo_column->set_width( ip_width = 20 ).
 
-    "range
+    "range de busca para a dropdown
     data(lo_range) = o_xl->add_new_range( ).
     lo_range->name = 'CollaboratorNumbers'. "nome do range
     lo_range->set_value(
@@ -595,7 +660,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
     ).
 
-    "validacao do range
+    "validacao do range da dropdown
     lo_data_validation              = lo_worksheet->add_new_data_validation( ).
     lo_data_validation->type        = zcl_excel_data_validation=>c_type_list.
     lo_data_validation->formula1    = 'CollaboratorNumbers'. "nome do range
