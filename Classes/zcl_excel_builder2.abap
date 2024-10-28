@@ -401,7 +401,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "rever as horas trabalhadas conforme consulta - aguardar info adicional
     data: horas_planeadas type p decimals 2.
-    horas_planeadas = '8'.
+    horas_planeadas = '8.00'.
 
     "repete a quantidade de dias que tem o mes
     do lv_countdays times.
@@ -430,14 +430,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         "cabeçalho de ausencia de trabalho
         lo_worksheet->set_cell( ip_row = 9 ip_column = lv_counterdays ip_value = 'Tempo' ip_style = tp_style_bold_center_guid ). "horas trabalhadas
-        "coluna de tempo trabalhado
-        lo_worksheet->set_cell( ip_row = 10 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
-        lo_worksheet->set_cell( ip_row = 11 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
-        lo_worksheet->set_cell( ip_row = 12 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
+        "colunas de tempo ausente de trabalho
+        lo_worksheet->set_cell( ip_row = 10 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
+        lo_worksheet->set_cell( ip_row = 11 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
+        lo_worksheet->set_cell( ip_row = 12 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
+        lo_worksheet->set_cell( ip_row = 13 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
 
         "setup da coluna para cada celula criada
         lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
-        lo_column->set_width( ip_width = 20 ).
+        lo_column->set_width( ip_width = 25 ).
 
         add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
 
@@ -676,6 +677,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_worksheet->set_cell( ip_row = 12 ip_column = 'A' ip_value = 'PEP 1' ip_style = tp_style_bold_center_guid ).
     lo_worksheet->set_cell( ip_row = 13 ip_column = 'A' ip_value = 'PEP 1' ip_style = tp_style_bold_center_guid ).
 
+    lo_worksheet->set_cell( ip_row = 10 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
     lo_worksheet->set_cell( ip_row = 11 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
     lo_worksheet->set_cell( ip_row = 12 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
     lo_worksheet->set_cell( ip_row = 13 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
