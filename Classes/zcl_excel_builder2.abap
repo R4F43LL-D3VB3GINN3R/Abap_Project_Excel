@@ -5,36 +5,33 @@ class zcl_excel_builder2 definition
 
   public section.
 
-    types: begin of wa_col,
-             pernr type pa0001-pernr, "Número Pessoal
-             sname type pa0002-cname, "Nome
-             vdsk1 type pa0001-vdsk1, "Chave de Organizacao
-             kostl type pa0001-kostl, "Centro de Custo
-           end of wa_col.
+    types:
+      begin of wa_col,
+        pernr type pa0001-pernr, "Número Pessoal
+        sname type pa0002-cname, "Nome
+        vdsk1 type pa0001-vdsk1, "Chave de Organizacao
+        kostl type pa0001-kostl, "Centro de Custo
+      end of wa_col .
+
     data:
-      it_colaboradores type table of wa_col,
-      ls_colaborador   type wa_col.
-
-    data: tt_colaboradores type zcol_tt,
-          st_colaborador   type zcol_st.
-
-    data: total_planeadas type string,
-          total_trabalhadas type string.
-
+      it_colaboradores type table of wa_col .
+    data ls_colaborador type wa_col .
+    data tt_colaboradores type zcol_tt .
+    data st_colaborador type zcol_st .
+    data total_planeadas type string .
+    data total_trabalhadas type string .
     data e_result type zrla_result .
-
-    data: o_xl               type ref to zcl_excel,
-          lo_worksheet       type ref to zcl_excel_worksheet,
-          lo_column          type ref to zcl_excel_column,
-          lo_data_validation type ref to zcl_excel_data_validation,
-          lo_range           type ref to zcl_excel_range,
-          o_converter        type ref to zcl_excel_converter.
-
-    data: lo_style                   type ref to zcl_excel_style,
-          o_border_dark              type ref to zcl_excel_style_border,
-          o_border_light             type ref to zcl_excel_style_border,
-          tp_style_bold_center_guid  type zexcel_cell_style,
-          tp_style_bold_center_guid2 type zexcel_cell_style.
+    data o_xl type ref to zcl_excel .
+    data lo_worksheet type ref to zcl_excel_worksheet .
+    data lo_column type ref to zcl_excel_column .
+    data lo_data_validation type ref to zcl_excel_data_validation .
+    data lo_range type ref to zcl_excel_range .
+    data o_converter type ref to zcl_excel_converter .
+    data lo_style type ref to zcl_excel_style .
+    data o_border_dark type ref to zcl_excel_style_border .
+    data o_border_light type ref to zcl_excel_style_border .
+    data tp_style_bold_center_guid type zexcel_cell_style .
+    data tp_style_bold_center_guid2 type zexcel_cell_style .
 
     methods get_data
       exporting
@@ -45,9 +42,9 @@ class zcl_excel_builder2 definition
       importing
         !i_table_content type ref to data
         !i_table_name    type string .
-
   protected section.
   private section.
+
     methods convert_xstring .
     methods set_database .
     methods append_extension
@@ -62,8 +59,7 @@ class zcl_excel_builder2 definition
         !full_path type string .
     methods set_style .
     methods set_sheets .
-    methods generate_calendar.
-
+    methods generate_calendar .
 ENDCLASS.
 
 
@@ -133,17 +129,17 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "recebe uma tabela generica
     "-------------------------------------------------------------------------------
 
-    " Tipo de dados generico
+    "tipo de dados generico
     data: lr_table type ref to data.
 
-    " Instanciar esse tipo de dados em runtime para ser uma tabela do tipo (i_table_name)
+    "instanciar esse tipo de dados em runtime para ser uma tabela do tipo (i_table_name)
     create data lr_table type table of (i_table_name).
 
-    " Preencher a tabela do método com o conteudo que vem no parametro
+    "preencher a tabela do método com o conteudo que vem no parametro
     lr_table = i_table_content.
 
-    " Como foi criada por referência ao tipo genérico "data" não dá para aceder diretamente
-    " Usar field symbol e apontar o conteudo da tabela (->*) para o field symbol
+    "como foi criada por referência ao tipo genérico "data" não dá para aceder diretamente
+    "usar field symbol e apontar o conteudo da tabela (->*) para o field symbol
     field-symbols: <lit_table> type any table.
     assign lr_table->* to <lit_table>.
 
@@ -189,12 +185,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     data: lo_table_descr  type ref to cl_abap_tabledescr,
           lo_struct_descr type ref to cl_abap_structdescr.
 
-*     Use RTTI services to describe table variable
     lo_table_descr ?= cl_abap_tabledescr=>describe_by_data( p_data = <lit_table> ).
-*     Use RTTI services to describe table structure
     lo_struct_descr ?= lo_table_descr->get_table_line_type( ).
 
-*     Count number of columns in structure
     data(lv_number_of_columns) = lines( lo_struct_descr->components ).
 
     "-------------------------------------------------------------------------------
