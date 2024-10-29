@@ -1,65 +1,90 @@
-class zcl_excel_builder2 definition
-  public
-  final
-  create public .
+CLASS zcl_excel_builder2 DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
 
-  public section.
+  PUBLIC SECTION.
 
-    types:
-      begin of wa_col,
-        pernr type pa0001-pernr, "Número Pessoal
-        sname type pa0002-cname, "Nome
-        vdsk1 type pa0001-vdsk1, "Chave de Organizacao
-        kostl type pa0001-kostl, "Centro de Custo
-      end of wa_col .
+    "types de informacoes de colaboradores
+    TYPES: BEGIN OF wa_col,
+             pernr TYPE pa0001-pernr, "Número Pessoal
+             sname TYPE pa0002-cname, "Nome
+             vdsk1 TYPE pa0001-vdsk1, "Chave de Organizacao
+             kostl TYPE pa0001-kostl, "Centro de Custo
+           END OF wa_col .
 
-    data:
-      it_colaboradores type table of wa_col .
-    data ls_colaborador type wa_col .
-    data tt_colaboradores type zcol_tt .
-    data st_colaborador type zcol_st .
-    data total_planeadas type string .
-    data total_trabalhadas type string .
-    data e_result type zrla_result .
-    data o_xl type ref to zcl_excel .
-    data lo_worksheet type ref to zcl_excel_worksheet .
-    data lo_column type ref to zcl_excel_column .
-    data lo_data_validation type ref to zcl_excel_data_validation .
-    data lo_range type ref to zcl_excel_range .
-    data o_converter type ref to zcl_excel_converter .
-    data lo_style type ref to zcl_excel_style .
-    data o_border_dark type ref to zcl_excel_style_border .
-    data o_border_light type ref to zcl_excel_style_border .
-    data tp_style_bold_center_guid type zexcel_cell_style .
-    data tp_style_bold_center_guid2 type zexcel_cell_style .
+    "types de ausencias de precensas
+    TYPES: BEGIN OF wa_pre_aus,
+             subty TYPE awart,  "t554s-subty Tipos de presença e ausência
+             atext TYPE abwtxt, "t554t-atext Textos de ausência e presença
+           END OF wa_pre_aus.
 
-    methods get_data
-      exporting
-        !colaboradores type zcol_tt
-        !e_result      type zrla_result .
-    methods download_xls .
-    methods display_fast_excel
-      importing
-        !i_table_content type ref to data
-        !i_table_name    type string .
-  protected section.
-  private section.
+    "linha unica para guardar ausencia e presença
+    types: begin of wa_line_preaus,
+      line type string,
+    end of wa_line_preaus.
 
-    methods convert_xstring .
-    methods set_database .
-    methods append_extension
-      importing
-        !old_extension type string
-      exporting
-        !new_extension type string .
-    methods get_file_directory
-      importing
-        !filename  type string
-      exporting
-        !full_path type string .
-    methods set_style .
-    methods set_sheets .
-    methods generate_calendar .
+    "informacoes dos colaboradores
+    DATA: it_colaboradores TYPE TABLE OF wa_col,
+          ls_colaborador   TYPE wa_col,
+          tt_colaboradores TYPE zcol_tt,
+          st_colaborador   TYPE zcol_st.
+
+    "informacoes de ausencia e presenca
+    data: it_aus_pre type table of wa_pre_aus,
+          ls_aus_pre type wa_pre_aus.
+
+    "linha de ausencia e presenca concatenada
+    data: it_line_preaus type table of string,
+          ls_line_preaus type string.
+
+    "celula de horas trabalhadas e planeadas
+    DATA: total_planeadas   TYPE string,
+          total_trabalhadas TYPE string.
+
+    DATA e_result TYPE zrla_result .
+
+    "objetos de construcao de arquivos excel
+    DATA: o_xl TYPE REF TO zcl_excel ,
+          lo_worksheet TYPE REF TO zcl_excel_worksheet .
+
+    "objetos de componentes do excel
+    DATA lo_column TYPE REF TO zcl_excel_column .
+    DATA lo_data_validation TYPE REF TO zcl_excel_data_validation .
+    DATA lo_range TYPE REF TO zcl_excel_range .
+    DATA o_converter TYPE REF TO zcl_excel_converter .
+    DATA lo_style TYPE REF TO zcl_excel_style .
+    DATA o_border_dark TYPE REF TO zcl_excel_style_border .
+    DATA o_border_light TYPE REF TO zcl_excel_style_border .
+    DATA tp_style_bold_center_guid TYPE zexcel_cell_style .
+    DATA tp_style_bold_center_guid2 TYPE zexcel_cell_style .
+
+    METHODS get_data
+      IMPORTING
+        !colaboradores TYPE zcol_tt.
+    METHODS download_xls .
+    METHODS display_fast_excel
+      IMPORTING
+        !i_table_content TYPE REF TO data
+        !i_table_name    TYPE string .
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+
+    METHODS convert_xstring .
+    METHODS set_database .
+    METHODS append_extension
+      IMPORTING
+        !old_extension TYPE string
+      EXPORTING
+        !new_extension TYPE string .
+    METHODS get_file_directory
+      IMPORTING
+        !filename  TYPE string
+      EXPORTING
+        !full_path TYPE string .
+    METHODS set_style .
+    METHODS set_sheets .
+    METHODS generate_calendar .
 ENDCLASS.
 
 
@@ -73,48 +98,48 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] OLD_EXTENSION                  TYPE        STRING
 * | [<---] NEW_EXTENSION                  TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method append_extension.
+  METHOD append_extension.
 
-    concatenate old_extension 'xlsx' into new_extension separated by '.'.
+    CONCATENATE old_extension 'xlsx' INTO new_extension SEPARATED BY '.'.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->CONVERT_XSTRING
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method convert_xstring.
+  METHOD convert_xstring.
 
-    data: lx_error      type ref to cx_root,  "define uma referência para exceções
-          lv_error_text type string.          "define uma variável para o texto do erro
+    DATA: lx_error      TYPE REF TO cx_root,  "define uma referência para exceções
+          lv_error_text TYPE string.          "define uma variável para o texto do erro
 
-    try.
+    TRY.
         "cria o objeto para o conversor
-        create object o_converter.
+        CREATE OBJECT o_converter.
 
         "converte os dados para o formato Excel
         o_converter->convert(
-          exporting
+          EXPORTING
             it_table = me->it_colaboradores
-          changing
+          CHANGING
             co_excel = me->o_xl
         ).
 
         "verificação de erros na conversão
-        if sy-subrc ne 0.
-          message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
-          return.
-        endif.
+        IF sy-subrc NE 0.
+          MESSAGE 'Não foi possível converter os dados para xstring' TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
 
-      catch cx_root into lx_error.
+      CATCH cx_root INTO lx_error.
         lv_error_text = lx_error->if_message~get_text( ).
-        message lv_error_text type 'S' display like 'E'.
-        return.
-    endtry.
+        MESSAGE lv_error_text TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -123,72 +148,72 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] I_TABLE_CONTENT                TYPE REF TO DATA
 * | [--->] I_TABLE_NAME                   TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method display_fast_excel.
+  METHOD display_fast_excel.
 
     "-------------------------------------------------------------------------------
     "recebe uma tabela generica
     "-------------------------------------------------------------------------------
 
     "tipo de dados generico
-    data: lr_table type ref to data.
+    DATA: lr_table TYPE REF TO data.
 
     "instanciar esse tipo de dados em runtime para ser uma tabela do tipo (i_table_name)
-    create data lr_table type table of (i_table_name).
+    CREATE DATA lr_table TYPE TABLE OF (i_table_name).
 
     "preencher a tabela do método com o conteudo que vem no parametro
     lr_table = i_table_content.
 
     "como foi criada por referência ao tipo genérico "data" não dá para aceder diretamente
     "usar field symbol e apontar o conteudo da tabela (->*) para o field symbol
-    field-symbols: <lit_table> type any table.
-    assign lr_table->* to <lit_table>.
+    FIELD-SYMBOLS: <lit_table> TYPE ANY TABLE.
+    ASSIGN lr_table->* TO <lit_table>.
 
-    create object o_xl. "cria objeto excel
-    create object o_converter.
+    CREATE OBJECT o_xl. "cria objeto excel
+    CREATE OBJECT o_converter.
 
     "-------------------------------------------------------------------------------
     "converte para xstring
     "-------------------------------------------------------------------------------
 
-    data: lx_error      type ref to cx_root,       "define uma referência para exceções
-          lv_error_text type string.          "define uma variável para o texto do erro
+    DATA: lx_error      TYPE REF TO cx_root,       "define uma referência para exceções
+          lv_error_text TYPE string.          "define uma variável para o texto do erro
 
-    try.
+    TRY.
         "converte os dados para o formato Excel
         o_converter->convert(
-          exporting
+          EXPORTING
             it_table      = <lit_table>
-          changing
+          CHANGING
             co_excel      = me->o_xl
         ).
 
         " Verificação de erros na conversão
-        if sy-subrc ne 0.
-          message 'Não foi possível converter os dados para xstring' type 'S' display like 'E'.
-          return.
-        endif.
+        IF sy-subrc NE 0.
+          MESSAGE 'Não foi possível converter os dados para xstring' TYPE 'S' DISPLAY LIKE 'E'.
+          RETURN.
+        ENDIF.
 
-      catch cx_root into lx_error.
+      CATCH cx_root INTO lx_error.
         lv_error_text = lx_error->if_message~get_text( ).
-        message lv_error_text type 'S' display like 'E'.
-        return.
-    endtry.
+        MESSAGE lv_error_text TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
     "cria um worksheet
-    data(o_xl_ws) = o_xl->get_active_worksheet( ).
+    DATA(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
 
     "-------------------------------------------------------------------------------
     "conta a quantidade de colunas da tabela
     "-------------------------------------------------------------------------------
 
-    data: lo_table_descr  type ref to cl_abap_tabledescr,
-          lo_struct_descr type ref to cl_abap_structdescr.
+    DATA: lo_table_descr  TYPE REF TO cl_abap_tabledescr,
+          lo_struct_descr TYPE REF TO cl_abap_structdescr.
 
     lo_table_descr ?= cl_abap_tabledescr=>describe_by_data( p_data = <lit_table> ).
     lo_struct_descr ?= lo_table_descr->get_table_line_type( ).
 
-    data(lv_number_of_columns) = lines( lo_struct_descr->components ).
+    DATA(lv_number_of_columns) = lines( lo_struct_descr->components ).
 
     "-------------------------------------------------------------------------------
     "setup das colunas - largura
@@ -197,21 +222,21 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     me->set_style( ). "insere o estilo na coluna
 
     "contador de colunas
-    data: count_columns type i.
+    DATA: count_columns TYPE i.
     count_columns = 1. "começa pela primeira
 
     "conta até a quantidade de colunas da tabela
-    do lv_number_of_columns times.
+    DO lv_number_of_columns TIMES.
       lo_column = lo_worksheet->get_column( ip_column = count_columns ).                 "pega a coluna relativo ao index
 *      lo_column->set_column_style_by_guid( ip_style_guid = tp_style_bold_center_guid2 ). "insere o estilo na coluna
       lo_column->set_width( ip_width = 30 ).                                             "insere o tamanho da coluna
-      add 1 to count_columns.
-    enddo.
+      ADD 1 TO count_columns.
+    ENDDO.
 
     count_columns = 1. "reseta o contador
 
     "titulo do worksheet principal
-    data(worksheet_title) = conv zexcel_sheet_title( |{ i_table_name }| ).
+    DATA(worksheet_title) = CONV zexcel_sheet_title( |{ i_table_name }| ).
     lo_worksheet->set_title( ip_title = worksheet_title ).
 
     "-------------------------------------------------------------------------------
@@ -219,94 +244,94 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "-------------------------------------------------------------------------------
 
     "tratamento de nome e extensão do arquivo
-    data full_path type string.
-    data namefile type string.
+    DATA full_path TYPE string.
+    DATA namefile TYPE string.
 
     namefile = 'file'.
 
     "metodo que salva nome e diretorio
     me->get_file_directory(
-      exporting
+      EXPORTING
         filename  = namefile
-      importing
+      IMPORTING
         full_path = full_path
     ).
 
     "se o download for cancelado...
-    if full_path is initial.
-      message 'O download foi cancelado pelo usuário.' type 'S' display like 'E'.
-      return.
-    endif.
+    IF full_path IS INITIAL.
+      MESSAGE 'O download foi cancelado pelo usuário.' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
 
     "-------------------------------------------------------------------------------
     "escritor para arquivo
     "-------------------------------------------------------------------------------
 
     "inicia o escritor do arquivo
-    data(o_xlwriter)  = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
-    data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
-    data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
+    DATA(o_xlwriter)  = CAST zif_excel_writer( NEW zcl_excel_writer_2007( ) ).
+    DATA(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
+    DATA(it_raw_data) = cl_bcs_convert=>xstring_to_solix( EXPORTING iv_xstring = lv_xl_xdata ).
 
     "-------------------------------------------------------------------------------
     "download do arquivo Excel
     "-------------------------------------------------------------------------------
 
-    try.
+    TRY.
         cl_gui_frontend_services=>gui_download(
-          exporting
+          EXPORTING
             filename     = full_path
             filetype     = 'BIN'
             bin_filesize = xstrlen( lv_xl_xdata )
-          changing
+          CHANGING
             data_tab     = it_raw_data
         ).
-      catch cx_root into lx_error.
+      CATCH cx_root INTO lx_error.
         lv_error_text = lx_error->if_message~get_text( ).
-        message lv_error_text type 'S' display like 'E'.
-        return.
-    endtry.
+        MESSAGE lv_error_text TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
     "-------------------------------------------------------------------------------
     "tratamento de erros
     "-------------------------------------------------------------------------------
 
-    if sy-subrc ne 0.
-      message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
-      return.
-    endif.
+    IF sy-subrc NE 0.
+      MESSAGE 'Não foi possível realizar o download do arquivo' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->DOWNLOAD_XLS
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method download_xls.
+  METHOD download_xls.
 
     "tratamento de nome e extensão do arquivo
-    data full_path type string.
-    data namefile type string.
+    DATA full_path TYPE string.
+    DATA namefile TYPE string.
 
     namefile = 'file'.
 
     "metodo que salva nome e diretorio
     me->get_file_directory(
-      exporting
+      EXPORTING
         filename  = namefile
-      importing
+      IMPORTING
         full_path = full_path
     ).
 
     "se o download for cancelado...
-    if full_path is initial.
-      message 'O download foi cancelado pelo usuário.' type 'S' display like 'E'.
-      return.
-    endif.
+    IF full_path IS INITIAL.
+      MESSAGE 'O download foi cancelado pelo usuário.' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
 
     "----------------------------------------------------------------
 
-    create object o_xl. "cria objeto excel
+    CREATE OBJECT o_xl. "cria objeto excel
 
     "insere o estilo
     me->set_style( ).
@@ -320,60 +345,60 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------
 
     "inicia o escritor do arquivo
-    data(o_xlwriter) = cast zif_excel_writer( new zcl_excel_writer_2007( ) ).
-    data(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
-    data(it_raw_data) = cl_bcs_convert=>xstring_to_solix( exporting iv_xstring = lv_xl_xdata ).
+    DATA(o_xlwriter) = CAST zif_excel_writer( NEW zcl_excel_writer_2007( ) ).
+    DATA(lv_xl_xdata) = o_xlwriter->write_file( o_xl ).
+    DATA(it_raw_data) = cl_bcs_convert=>xstring_to_solix( EXPORTING iv_xstring = lv_xl_xdata ).
 
     "----------------------------------------------------------------
 
     "download do arquivo Excel
-    try.
+    TRY.
         cl_gui_frontend_services=>gui_download(
-          exporting
+          EXPORTING
             filename     = full_path
             filetype     = 'BIN'
             bin_filesize = xstrlen( lv_xl_xdata )
-          changing
+          CHANGING
             data_tab     = it_raw_data
         ).
-      catch cx_root into data(ex_txt).
-        write: / ex_txt->get_text( ).
-    endtry.
+      CATCH cx_root INTO DATA(ex_txt).
+        WRITE: / ex_txt->get_text( ).
+    ENDTRY.
 
     "----------------------------------------------------------------
 
     "tratamento de erros
-    if sy-subrc ne 0.
-      message 'Não foi possível realizar o download do arquivo' type 'S' display like 'E'.
-      return.
-    endif.
+    IF sy-subrc NE 0.
+      MESSAGE 'Não foi possível realizar o download do arquivo' TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->GENERATE_CALENDAR
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method generate_calendar.
+  METHOD generate_calendar.
 
     "buscando a quantidade de dias no mes
-    data: lv_date          type /osp/dt_date, "data enviada
-          lv_countdays     type /osp/dt_day,  "dias do mes recebidos
-          lv_countdays2    type i,            "dias do mes em inteiro
-          lv_counterdays   type i,            "contador de dias
-          lv_newdate       type sy-datum,     "nova data formatada
-          lv_stringdaydate type string,       "dia formatado
-          lv_day           type i,            "dia em inteiro
-          lv_strday        type string.       "dia em string
+    DATA: lv_date          TYPE /osp/dt_date, "data enviada
+          lv_countdays     TYPE /osp/dt_day,  "dias do mes recebidos
+          lv_countdays2    TYPE i,            "dias do mes em inteiro
+          lv_counterdays   TYPE i,            "contador de dias
+          lv_newdate       TYPE sy-datum,     "nova data formatada
+          lv_stringdaydate TYPE string,       "dia formatado
+          lv_day           TYPE i,            "dia em inteiro
+          lv_strday        TYPE string.       "dia em string
 
     lv_date = sy-datum. "recebe a data atual
 
     "funcao retorna a quantidade de dias do mes
-    call function '/OSP/GET_DAYS_IN_MONTH'
-      exporting
+    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
+      EXPORTING
         iv_date = lv_date
-      importing
+      IMPORTING
         ev_days = lv_countdays.
 
     lv_countdays2 = lv_countdays. "casting int
@@ -386,35 +411,35 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_strday = '01'.          "sempre começamos pelo primeiro dia do mes
 
     "junta ano + mes e primeiro dia do mes
-    concatenate lv_newdate lv_strday into lv_newdate.
+    CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
     "formula para somar horas planeadas e trabalhadas
     total_planeadas   = '=SUM(E7:AI7)'. "formula para somar horas a trabalhar
     total_trabalhadas = '=SUM(E8:AI8)'. "formula para somar horas a trabalhar
 
     "rever as horas trabalhadas conforme consulta - aguardar info adicional
-    data: horas_planeadas type p decimals 2.
+    DATA: horas_planeadas TYPE p DECIMALS 2.
     horas_planeadas = '8.00'.
 
     "repete a quantidade de dias que tem o mes
-    do lv_countdays times.
+    DO lv_countdays TIMES.
 
       "funcao retorna a data formatada [ numdia + nomediasemana ]
-      call function 'ZWEEKDATE'
-        exporting
+      CALL FUNCTION 'ZWEEKDATE'
+        EXPORTING
           date           = lv_newdate
-        importing
+        IMPORTING
           format_daydate = lv_stringdaydate
           e_result       = e_result.
 
-      if sy-subrc eq 0.
+      IF sy-subrc EQ 0.
 
         "verifica se é sábado ou domingo para nao contabilizar as horas.
-        if lv_stringdaydate cs 'Sábado' or lv_stringdaydate cs 'Domingo'.
+        IF lv_stringdaydate CS 'Sábado' OR lv_stringdaydate CS 'Domingo'.
           horas_planeadas = '0'.
-        else.
+        ELSE.
           horas_planeadas = '8'.
-        endif.
+        ENDIF.
 
         "cria a celula
         lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid  ). "cabeçalho do calendário
@@ -433,51 +458,56 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
         lo_column->set_width( ip_width = 25 ).
 
-        add 1 to lv_counterdays. "incrementa o contador para a proxima coluna
+        ADD 1 TO lv_counterdays. "incrementa o contador para a proxima coluna
 
         lv_day = lv_strday. "casting int
-        add 1 to lv_day.    "incrementa o dia
+        ADD 1 TO lv_day.    "incrementa o dia
         lv_strday = lv_day. "casting string
 
         "se nao passamos dos 10 primeiros dias do mês
-        if lv_day lt 10.
-          concatenate '0' lv_strday into lv_strday. "adiciona o 0 na frente do numero
-        endif.
+        IF lv_day LT 10.
+          CONCATENATE '0' lv_strday INTO lv_strday. "adiciona o 0 na frente do numero
+        ENDIF.
 
-        clear lv_newdate.                                 "limpa a variavel
+        CLEAR lv_newdate.                                 "limpa a variavel
         lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
-        concatenate lv_newdate lv_strday into lv_newdate. "redefine a data para o dia seguinte.
+        CONCATENATE lv_newdate lv_strday INTO lv_newdate. "redefine a data para o dia seguinte.
 
-      endif.
+      ENDIF.
 
-    enddo.
+    ENDDO.
 
     lv_counterdays = 5. "reseta o contador para a 5th coluna
-    clear: lv_day, lv_strday. "limpa os contadores de dias em string e int.
+    CLEAR: lv_day, lv_strday. "limpa os contadores de dias em string e int.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->GET_DATA
 * +-------------------------------------------------------------------------------------------------+
-* | [<---] COLABORADORES                  TYPE        ZCOL_TT
-* | [<---] E_RESULT                       TYPE        ZRLA_RESULT
+* | [--->] COLABORADORES                  TYPE        ZCOL_TT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method get_data.
+  METHOD get_data.
 
-    me->it_colaboradores = value #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
-                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
-                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
-                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
-                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
-                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
-                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
-                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
-                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
-                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
+*    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
+*                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
+*                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
+*                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
+*                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
+*                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
+*                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
+*                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
+*                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
+*                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
 
-  endmethod.
+    me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
+
+    IF colaboradores IS INITIAL.
+      MESSAGE | Não foi possível receber os dados da base de dados | TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -486,65 +516,65 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] FILENAME                       TYPE        STRING
 * | [<---] FULL_PATH                      TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method get_file_directory.
+  METHOD get_file_directory.
 
-    data: namefile  type string, "nome do arquivo
-          directory type string, "diretorio
-          fullpath  type string. "caminho completo
+    DATA: namefile  TYPE string, "nome do arquivo
+          directory TYPE string, "diretorio
+          fullpath  TYPE string. "caminho completo
 
     namefile = 'file'.
 
     "adiciona a extensão '.xlsx' ao nome do arquivo
     me->append_extension(
-      exporting
+      EXPORTING
         old_extension = namefile
-      importing
+      IMPORTING
         new_extension = namefile
     ).
 
     "diálogo para selecionar diretorio e nome do arquivo
-    call method cl_gui_frontend_services=>file_save_dialog
-      exporting
+    CALL METHOD cl_gui_frontend_services=>file_save_dialog
+      EXPORTING
         default_extension = 'xlsx'
         default_file_name = namefile
-      changing
+      CHANGING
         filename          = namefile
         path              = directory
         fullpath          = fullpath
-      exceptions
-        others            = 1.
+      EXCEPTIONS
+        OTHERS            = 1.
 
     "se o user nao cancelar a operacao...
-    if sy-subrc = 0.
-      concatenate directory namefile into fullpath separated by '\'. "cria diretorio completo do arquivo
-    else.
-      clear fullpath. "limpa o caminho
-    endif.
+    IF sy-subrc = 0.
+      CONCATENATE directory namefile INTO fullpath SEPARATED BY '\'. "cria diretorio completo do arquivo
+    ELSE.
+      CLEAR fullpath. "limpa o caminho
+    ENDIF.
 
     full_path = fullpath. "retorna caminho completo do arquivo
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->SET_DATABASE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_database.
+  METHOD set_database.
 
-    data(o_xl_ws) = o_xl->get_active_worksheet( ).
+    DATA(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
 
     "insere titulo na worksheet.
-    data: lv_title type zexcel_sheet_title. "titulo de worksheets
+    DATA: lv_title TYPE zexcel_sheet_title. "titulo de worksheets
     lv_title = 'Colaboradores'.
     lo_worksheet->set_title( ip_title = lv_title ).
 
-    data: it_stringtable type table of string, "tabela da dropdown validation
-          ls_stringtable type string.
+    DATA: it_stringtable TYPE TABLE OF string, "tabela da dropdown validation
+          ls_stringtable TYPE string.
 
     "index para correr as linhas
-    data: lv_index type i.
+    DATA: lv_index TYPE i.
     lv_index = 2.
 
     "cabeçalho da tabela
@@ -554,27 +584,27 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'D' ip_value = 'Centro de Custo' ip_style = tp_style_bold_center_guid ).
 
     "linhas da tabela
-    loop at me->it_colaboradores into me->ls_colaborador.
+    LOOP AT me->it_colaboradores INTO me->ls_colaborador.
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value = ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value = ls_colaborador-vdsk1 ip_style = tp_style_bold_center_guid2 ).
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value = ls_colaborador-kostl ip_style = tp_style_bold_center_guid2 ).
-      add 1 to lv_index. "incrementa o contador
+      ADD 1 TO lv_index. "incrementa o contador
 
       "preenche a tabela da dropdown.
-      concatenate ls_colaborador-pernr '-' ls_colaborador-sname into ls_stringtable separated by space.
-      append ls_stringtable to it_stringtable.
-      clear: ls_stringtable, me->ls_colaborador.
-    endloop.
+      CONCATENATE ls_colaborador-pernr '-' ls_colaborador-sname INTO ls_stringtable SEPARATED BY space.
+      APPEND ls_stringtable TO it_stringtable.
+      CLEAR: ls_stringtable, me->ls_colaborador.
+    ENDLOOP.
 
     lv_index = 2. "reseta o contador
 
     "começa a escrever a tabela da dropdown
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'Z' ip_value = 'Lista de Colaboradores' ip_style = tp_style_bold_center_guid ).
-    loop at it_stringtable into ls_stringtable.
+    LOOP AT it_stringtable INTO ls_stringtable.
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'Z' ip_value = ls_stringtable  ip_style = tp_style_bold_center_guid2 ).
-      add 1 to lv_index. "incrementa o contador
-    endloop.
+      ADD 1 TO lv_index. "incrementa o contador
+    ENDLOOP.
 
     "setup das colunas
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
@@ -590,23 +620,23 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     lv_index = 2. "reseta o contador
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->SET_SHEETS
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_sheets.
+  METHOD set_sheets.
 
-    data: lv_title type zexcel_sheet_title.
+    DATA: lv_title TYPE zexcel_sheet_title.
     lv_title = 'Colaboradores'.
 
     "formulas usadas
-    data: lv_formula_pernr type zexcel_cell_formula,
-          lv_formula_sname type zexcel_cell_formula,
-          lv_formula_vdsk1 type zexcel_cell_formula,
-          lv_formula_kostl type zexcel_cell_formula.
+    DATA: lv_formula_pernr TYPE zexcel_cell_formula,
+          lv_formula_sname TYPE zexcel_cell_formula,
+          lv_formula_vdsk1 TYPE zexcel_cell_formula,
+          lv_formula_kostl TYPE zexcel_cell_formula.
     lv_formula_pernr = '=VLOOKUP(A10,Colaboradores!A2:B12,1)'. "procura por id
     lv_formula_sname = '=VLOOKUP(A10,Colaboradores!A2:B12,2)'. "procura por nome
     lv_formula_vdsk1 = '=VLOOKUP(A10,Colaboradores!A2:C12,3)'. "procura por equipa
@@ -687,7 +717,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_column->set_width( ip_width = 20 ).
 
     "range de busca para a dropdown
-    data(lo_range) = o_xl->add_new_range( ).
+    DATA(lo_range) = o_xl->add_new_range( ).
     lo_range->name = 'CollaboratorNumbers'. "nome do range
     lo_range->set_value(
       ip_sheet_name   = lv_title "sheet escolhida
@@ -705,25 +735,25 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_data_validation->cell_column = 'A'.
     lo_data_validation->allowblank  = abap_true.
 
-  endmethod.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->SET_STYLE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method set_style.
+  METHOD set_style.
 
     "cria objetos das bordas
-    create object o_border_dark.
+    CREATE OBJECT o_border_dark.
     o_border_dark->border_color-rgb = zcl_excel_style_color=>c_black.
     o_border_dark->border_style = zcl_excel_style_border=>c_border_thin.
-    create object o_border_light.
+    CREATE OBJECT o_border_light.
     o_border_light->border_color-rgb = zcl_excel_style_color=>c_gray.
     o_border_light->border_style = zcl_excel_style_border=>c_border_thin.
 
     "monta o primeiro estilo para a coluna A da paginacao
-    create object me->lo_style.
+    CREATE OBJECT me->lo_style.
     lo_style                         = o_xl->add_new_style( ).
     lo_style->font->bold             = abap_true.
     lo_style->font->italic           = abap_false.
@@ -753,5 +783,5 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "é possível montar vários estilos guid e usar de forma como convém
 
-  endmethod.
+  ENDMETHOD.
 ENDCLASS.
