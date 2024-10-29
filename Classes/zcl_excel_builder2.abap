@@ -24,6 +24,17 @@ CLASS zcl_excel_builder2 DEFINITION
              line TYPE string,
            END OF wa_line_preaus.
 
+    "linha unica para guardar projetos
+    TYPES: BEGIN OF wa_line_projects,
+             line TYPE string,
+           END OF wa_line_projects.
+
+    "types para projetos abertos
+    TYPES: BEGIN OF wa_project,
+             objnr TYPE j_objnr,
+             post1 TYPE ps_post1,
+           END OF wa_project.
+
     "informacoes dos colaboradores
     DATA: it_colaboradores TYPE TABLE OF wa_col,
           ls_colaborador   TYPE wa_col,
@@ -42,6 +53,14 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: total_planeadas   TYPE string,
           total_trabalhadas TYPE string.
 
+    "tabela e estrutura de projetos abertos
+    DATA: it_projetos TYPE TABLE OF wa_project,
+          ls_projetos TYPE wa_project.
+
+    "tabela de linha concatenada de projetos
+    DATA: it_linha_projetos TYPE TABLE OF wa_line_projects,
+          ls_linha_projeto  TYPE wa_line_projects.
+
     DATA e_result TYPE zrla_result .
 
     "objetos de construcao de arquivos excel
@@ -51,7 +70,7 @@ CLASS zcl_excel_builder2 DEFINITION
     "objetos de componentes do excel
     DATA: lo_column                  TYPE REF TO zcl_excel_column,
           lo_data_validation         TYPE REF TO zcl_excel_data_validation,
-          lo_data_validation2         TYPE REF TO zcl_excel_data_validation,
+          lo_data_validation2        TYPE REF TO zcl_excel_data_validation,
           lo_range                   TYPE REF TO zcl_excel_range,
           o_converter                TYPE REF TO zcl_excel_converter,
           lo_style                   TYPE REF TO zcl_excel_style,
@@ -415,8 +434,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
     "formula para somar horas planeadas e trabalhadas
-    total_planeadas   = '=SUM(E7:AI7)'. "formula para somar horas a trabalhar
-    total_trabalhadas = '=SUM(E8:AI8)'. "formula para somar horas a trabalhar
+    total_planeadas   = '=SUM(E7:AI7)'.   "formula para somar horas a trabalhar
+    total_trabalhadas = '=SUM(E10:AI15)'. "formula para somar horas trabalhadas
 
     "rever as horas trabalhadas conforme consulta - aguardar info adicional
     DATA: horas_planeadas TYPE p DECIMALS 2.
@@ -449,11 +468,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         "cabeçalho de ausencia de trabalho
         lo_worksheet->set_cell( ip_row = 9 ip_column = lv_counterdays ip_value = 'Tempo' ip_style = tp_style_bold_center_guid ). "horas trabalhadas
-        "colunas de tempo ausente de trabalho
+        "colunas de tempo de trabalho
         lo_worksheet->set_cell( ip_row = 10 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
         lo_worksheet->set_cell( ip_row = 11 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
         lo_worksheet->set_cell( ip_row = 12 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
         lo_worksheet->set_cell( ip_row = 13 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
+        lo_worksheet->set_cell( ip_row = 14 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
+        lo_worksheet->set_cell( ip_row = 15 ip_column = lv_counterdays ip_value = 0 ip_style = tp_style_bold_center_guid2 ).
 
         "setup da coluna para cada celula criada
         lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
@@ -535,6 +556,32 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CONCATENATE stringline me->ls_aus_pre-atext INTO me->ls_line_preaus-line SEPARATED BY ' - '.
       APPEND me->ls_line_preaus TO me->it_line_preaus.
     ENDLOOP.
+
+    CLEAR stringline.
+
+    "consulta para obter textos de projetos
+    "---------------------------------------
+
+    SELECT prps~objnr
+           prps~post1
+      FROM prps
+      INNER JOIN jest
+      ON prps~objnr EQ jest~objnr
+      INTO TABLE me->it_projetos
+      WHERE prps~txtsp EQ sy-langu
+      AND jest~inact EQ ''.
+
+    "formacao da linha de textos para projetos
+    "---------------------------------------------
+
+    "itera sobre a tabela de textos concatenando o numero dos projetos à descricao dos projetos
+    LOOP AT me->it_projetos INTO me->ls_projetos.
+      stringline = me->ls_projetos-objnr.
+      CONCATENATE stringline me->ls_projetos-post1 INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
+      APPEND me->ls_linha_projeto TO me->it_linha_projetos.
+    ENDLOOP.
+
+    CLEAR stringline.
 
   ENDMETHOD.
 
@@ -644,6 +691,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ADD 1 TO lv_index. "incrementa o contador
     ENDLOOP.
 
+    lv_index = 2. "reseta o contador
+
+    "começa a escrever a tabela da dropdown de projetos
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'AB' ip_value = 'Lista de Projetos' ip_style = tp_style_bold_center_guid ).
+    LOOP AT me->it_linha_projetos INTO me->ls_linha_projeto.
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'AB' ip_value = me->ls_linha_projeto-line  ip_style = tp_style_bold_center_guid2 ).
+      ADD 1 TO lv_index. "incrementa o contador
+    ENDLOOP.
+
     "setup das colunas
     lo_column = lo_worksheet->get_column( ip_column = 'A' ).
     lo_column->set_width( ip_width = 30 ).
@@ -656,6 +712,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_column = lo_worksheet->get_column( ip_column = 'Z' ).
     lo_column->set_width( ip_width = 40 ).
     lo_column = lo_worksheet->get_column( ip_column = 'AA' ).
+    lo_column->set_width( ip_width = 50 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'AB' ).
     lo_column->set_width( ip_width = 50 ).
 
     lv_index = 2. "reseta o contador
@@ -684,7 +742,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "------------------------------------------------------------------------------------------------------------------------------------------
     "------------------------------------------------------------------------------------------------------------------------------------------
 
-    loop at me->it_colaboradores into me->ls_colaborador.
+    LOOP AT me->it_colaboradores INTO me->ls_colaborador.
 
       lv_title = | { me->ls_colaborador-pernr } - { me->ls_colaborador-sname }|.
 
@@ -723,8 +781,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       lo_worksheet->set_cell( ip_row = 6  ip_column = 'D' ip_value = 'Totais'                                ip_style = tp_style_bold_center_guid ).
       lo_worksheet->set_cell( ip_row = 7  ip_column = 'D' ip_value = ''       ip_formula = total_planeadas   ip_style = tp_style_bold_center_guid2 ).
       lo_worksheet->set_cell( ip_row = 8  ip_column = 'D' ip_value = ''       ip_formula = total_trabalhadas ip_style = tp_style_bold_center_guid2 ).
-      lo_worksheet->set_cell( ip_row = 9  ip_column = 'D' ip_value = ''       ip_formula = total_planeadas   ip_style = tp_style_bold_center_guid2 ).
-      lo_worksheet->set_cell( ip_row = 10 ip_column = 'D' ip_value = ''       ip_formula = total_trabalhadas ip_style = tp_style_bold_center_guid2 ).
 
       "------------------------------------------------------------------------------------------------------------------------------------------
       "------------------------------------------------------------------------------------------------------------------------------------------
@@ -773,10 +829,21 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ip_stop_row     = lines( me->it_aus_pre ) + 1 "limite do range
       ).
 
-      data: counter_listboxes type i.
+      "range de busca para a dropdown de peps
+      lo_range = o_xl->add_new_range( ).
+      lo_range->name = 'PEPS'. "nome do range
+      lo_range->set_value(
+        ip_sheet_name   = 'Colaboradores' "sheet escolhida
+        ip_start_column = 'AB'
+        ip_start_row    = 2
+        ip_stop_column  = 'AB'
+        ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
+      ).
+
+      DATA: counter_listboxes TYPE i.
       counter_listboxes = 10.
 
-      do 6 times.
+      DO 6 TIMES.
 
         "validacao do range da dropdown
         lo_data_validation              = lo_worksheet->add_new_data_validation( ).
@@ -786,25 +853,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         lo_data_validation->cell_column = 'B'.
         lo_data_validation->allowblank  = abap_true.
 
-        add 1 to counter_listboxes.
-
-      enddo.
-
-      "range de busca para a dropdown de peps
-      lo_range = o_xl->add_new_range( ).
-      lo_range->name = 'PEPS'. "nome do range
-      lo_range->set_value(
-        ip_sheet_name   = 'Colaboradores' "sheet escolhida
-        ip_start_column = 'Z'
-        ip_start_row    = 2
-        ip_stop_column  = 'Z'
-        ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
-      ).
-
-      counter_listboxes = 10.
-
-      do 6 times.
-
         "validacao do range da dropdown
         lo_data_validation2              = lo_worksheet->add_new_data_validation( ).
         lo_data_validation2->type        = zcl_excel_data_validation=>c_type_list.
@@ -813,16 +861,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         lo_data_validation2->cell_column = 'A'.
         lo_data_validation2->allowblank  = abap_true.
 
-        add 1 to counter_listboxes.
+        ADD 1 TO counter_listboxes.
 
-      enddo.
+      ENDDO.
 
       "------------------------------------------------------------------------------------------------------------------------------------------
       "------------------------------------------------------------------------------------------------------------------------------------------
 
-      clear: me->ls_colaborador, counter_listboxes.
+      CLEAR: me->ls_colaborador, counter_listboxes.
 
-    endloop.
+    ENDLOOP.
 
   ENDMETHOD.
 
