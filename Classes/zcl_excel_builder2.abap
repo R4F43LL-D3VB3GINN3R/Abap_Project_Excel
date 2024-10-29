@@ -20,9 +20,9 @@ CLASS zcl_excel_builder2 DEFINITION
            END OF wa_pre_aus.
 
     "linha unica para guardar ausencia e presença
-    types: begin of wa_line_preaus,
-      line type string,
-    end of wa_line_preaus.
+    TYPES: BEGIN OF wa_line_preaus,
+             line TYPE string,
+           END OF wa_line_preaus.
 
     "informacoes dos colaboradores
     DATA: it_colaboradores TYPE TABLE OF wa_col,
@@ -31,12 +31,12 @@ CLASS zcl_excel_builder2 DEFINITION
           st_colaborador   TYPE zcol_st.
 
     "informacoes de ausencia e presenca
-    data: it_aus_pre type table of wa_pre_aus,
-          ls_aus_pre type wa_pre_aus.
+    DATA: it_aus_pre TYPE TABLE OF wa_pre_aus,
+          ls_aus_pre TYPE wa_pre_aus.
 
     "linha de ausencia e presenca concatenada
-    data: it_line_preaus type table of string,
-          ls_line_preaus type string.
+    DATA: it_line_preaus TYPE TABLE OF string,
+          ls_line_preaus TYPE string.
 
     "celula de horas trabalhadas e planeadas
     DATA: total_planeadas   TYPE string,
@@ -45,19 +45,19 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA e_result TYPE zrla_result .
 
     "objetos de construcao de arquivos excel
-    DATA: o_xl TYPE REF TO zcl_excel ,
-          lo_worksheet TYPE REF TO zcl_excel_worksheet .
+    DATA: o_xl         TYPE REF TO zcl_excel,
+          lo_worksheet TYPE REF TO zcl_excel_worksheet.
 
     "objetos de componentes do excel
-    DATA lo_column TYPE REF TO zcl_excel_column .
-    DATA lo_data_validation TYPE REF TO zcl_excel_data_validation .
-    DATA lo_range TYPE REF TO zcl_excel_range .
-    DATA o_converter TYPE REF TO zcl_excel_converter .
-    DATA lo_style TYPE REF TO zcl_excel_style .
-    DATA o_border_dark TYPE REF TO zcl_excel_style_border .
-    DATA o_border_light TYPE REF TO zcl_excel_style_border .
-    DATA tp_style_bold_center_guid TYPE zexcel_cell_style .
-    DATA tp_style_bold_center_guid2 TYPE zexcel_cell_style .
+    DATA: lo_column                  TYPE REF TO zcl_excel_column,
+          lo_data_validation         TYPE REF TO zcl_excel_data_validation,
+          lo_range                   TYPE REF TO zcl_excel_range,
+          o_converter                TYPE REF TO zcl_excel_converter,
+          lo_style                   TYPE REF TO zcl_excel_style,
+          o_border_dark              TYPE REF TO zcl_excel_style_border,
+          o_border_light             TYPE REF TO zcl_excel_style_border,
+          tp_style_bold_center_guid  TYPE zexcel_cell_style,
+          tp_style_bold_center_guid2 TYPE zexcel_cell_style.
 
     METHODS get_data
       IMPORTING
