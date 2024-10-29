@@ -35,8 +35,8 @@ CLASS zcl_excel_builder2 DEFINITION
           ls_aus_pre TYPE wa_pre_aus.
 
     "linha de ausencia e presenca concatenada
-    DATA: it_line_preaus TYPE TABLE OF string,
-          ls_line_preaus TYPE string.
+    DATA: it_line_preaus TYPE TABLE OF wa_line_preaus,
+          ls_line_preaus TYPE wa_line_preaus.
 
     "celula de horas trabalhadas e planeadas
     DATA: total_planeadas   TYPE string,
@@ -51,6 +51,7 @@ CLASS zcl_excel_builder2 DEFINITION
     "objetos de componentes do excel
     DATA: lo_column                  TYPE REF TO zcl_excel_column,
           lo_data_validation         TYPE REF TO zcl_excel_data_validation,
+          lo_data_validation2         TYPE REF TO zcl_excel_data_validation,
           lo_range                   TYPE REF TO zcl_excel_range,
           o_converter                TYPE REF TO zcl_excel_converter,
           lo_style                   TYPE REF TO zcl_excel_style,
@@ -490,22 +491,50 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_data.
 
-*    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
-*                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
-*                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
-*                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
-*                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
-*                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
-*                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
-*                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
-*                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
-*                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
+    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
+                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
+                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
+                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
+                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
+                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
+                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
+                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
+                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
+                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
 
-    me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
+*    me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
 
+    "verifica se algum dado foi enviado
     IF colaboradores IS INITIAL.
       MESSAGE | Não foi possível receber os dados da base de dados | TYPE 'S' DISPLAY LIKE 'E'.
     ENDIF.
+
+    "consulta para obter textos de ausencia e presenca
+    "-------------------------------------------
+
+    SELECT t554s~subty,
+           t554t~atext
+    FROM t554s
+    INNER JOIN t554t
+    ON t554s~moabw = t554t~moabw
+    INTO TABLE @me->it_aus_pre
+    WHERE t554s~moabw EQ 19
+    AND   t554t~moabw EQ 19
+    AND   t554t~sprsl EQ @sy-langu
+    AND   t554t~atext NE ''
+    AND   t554s~subty EQ '0100'.
+
+    "formacao da linha de textos para ausencia e presenca
+    "----------------------------------------------------
+
+    DATA stringline TYPE string.
+
+    "itera sobre a tabela de textos concatenando Tipos de presença e ausência com os Textos de ausência e presença
+    LOOP AT me->it_aus_pre INTO me->ls_aus_pre.
+      stringline = me->ls_aus_pre-subty. "casting do numero
+      CONCATENATE stringline me->ls_aus_pre-atext INTO me->ls_line_preaus-line SEPARATED BY ' - '.
+      APPEND me->ls_line_preaus TO me->it_line_preaus.
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -599,10 +628,19 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     lv_index = 2. "reseta o contador
 
-    "começa a escrever a tabela da dropdown
+    "começa a escrever a tabela da dropdown da lista de colaboradores
     lo_worksheet->set_cell( ip_row = 1 ip_column = 'Z' ip_value = 'Lista de Colaboradores' ip_style = tp_style_bold_center_guid ).
     LOOP AT it_stringtable INTO ls_stringtable.
       lo_worksheet->set_cell( ip_row = lv_index ip_column = 'Z' ip_value = ls_stringtable  ip_style = tp_style_bold_center_guid2 ).
+      ADD 1 TO lv_index. "incrementa o contador
+    ENDLOOP.
+
+    lv_index = 2. "reseta o contador
+
+    "começa a escrever a tabela da dropdown de ausencias e presencas
+    lo_worksheet->set_cell( ip_row = 1 ip_column = 'AA' ip_value = 'Ausências / Prensenças' ip_style = tp_style_bold_center_guid ).
+    LOOP AT me->it_line_preaus INTO me->ls_line_preaus.
+      lo_worksheet->set_cell( ip_row = lv_index ip_column = 'AA' ip_value = me->ls_line_preaus-line  ip_style = tp_style_bold_center_guid2 ).
       ADD 1 TO lv_index. "incrementa o contador
     ENDLOOP.
 
@@ -617,6 +655,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_column->set_width( ip_width = 30 ).
     lo_column = lo_worksheet->get_column( ip_column = 'Z' ).
     lo_column->set_width( ip_width = 40 ).
+    lo_column = lo_worksheet->get_column( ip_column = 'AA' ).
+    lo_column->set_width( ip_width = 50 ).
 
     lv_index = 2. "reseta o contador
 
@@ -630,110 +670,159 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
   METHOD set_sheets.
 
     DATA: lv_title TYPE zexcel_sheet_title.
-    lv_title = 'Colaboradores'.
 
     "formulas usadas
-    DATA: lv_formula_pernr TYPE zexcel_cell_formula,
-          lv_formula_sname TYPE zexcel_cell_formula,
-          lv_formula_vdsk1 TYPE zexcel_cell_formula,
-          lv_formula_kostl TYPE zexcel_cell_formula.
-    lv_formula_pernr = '=VLOOKUP(A10,Colaboradores!A2:B12,1)'. "procura por id
-    lv_formula_sname = '=VLOOKUP(A10,Colaboradores!A2:B12,2)'. "procura por nome
-    lv_formula_vdsk1 = '=VLOOKUP(A10,Colaboradores!A2:C12,3)'. "procura por equipa
-    lv_formula_kostl = '=VLOOKUP(A10,Colaboradores!A2:D12,4)'. "procura por centro de custos
-
-    "criando uma nova worksheet
-    lo_worksheet = o_xl->add_new_worksheet( ).
-    lo_worksheet->set_title( ip_title = | { lv_title } | ).
+*    DATA: lv_formula_pernr TYPE zexcel_cell_formula,
+*          lv_formula_sname TYPE zexcel_cell_formula,
+*          lv_formula_vdsk1 TYPE zexcel_cell_formula,
+*          lv_formula_kostl TYPE zexcel_cell_formula.
+*    lv_formula_pernr = '=VLOOKUP(A10,Colaboradores!A2:B12,1)'. "procura por id
+*    lv_formula_sname = '=VLOOKUP(A10,Colaboradores!A2:B12,2)'. "procura por nome
+*    lv_formula_vdsk1 = '=VLOOKUP(A10,Colaboradores!A2:C12,3)'. "procura por equipa
+*    lv_formula_kostl = '=VLOOKUP(A10,Colaboradores!A2:D12,4)'. "procura por centro de custos
 
     "------------------------------------------------------------------------------------------------------------------------------------------
     "------------------------------------------------------------------------------------------------------------------------------------------
 
-    "nomes dos campos do cabeçalho
-    lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'N.Mecan:'         ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Nome:'            ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Equipa:'          ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Centro de Custo:' ip_style = tp_style_bold_center_guid ).
+    loop at me->it_colaboradores into me->ls_colaborador.
 
-    "nomes das linhas do cabeçalho
-    lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_pernr ).
-    lo_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_sname ).
-    lo_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_vdsk1 ).
-    lo_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value = '' ip_style = tp_style_bold_center_guid2 ip_formula = lv_formula_kostl ).
+      lv_title = | { me->ls_colaborador-pernr } - { me->ls_colaborador-sname }|.
 
-    "------------------------------------------------------------------------------------------------------------------------------------------
-    "------------------------------------------------------------------------------------------------------------------------------------------
+      "criando uma nova worksheet
+      lo_worksheet = o_xl->add_new_worksheet( ).
+      lo_worksheet->set_title( ip_title = | { lv_title } | ).
 
-    "calendários do excel
+      "nomes dos campos do cabeçalho
+      lo_worksheet->set_cell( ip_row = 1 ip_column = 'A' ip_value = 'N.Mecan:'         ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 2 ip_column = 'A' ip_value = 'Nome:'            ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 3 ip_column = 'A' ip_value = 'Equipa:'          ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 4 ip_column = 'A' ip_value = 'Centro de Custo:' ip_style = tp_style_bold_center_guid ).
 
-    me->generate_calendar( ). "gerador do calendario do excel.
+      "nomes das linhas do cabeçalho
+      lo_worksheet->set_cell( ip_row = 1 ip_column = 'B' ip_value = me->ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 2 ip_column = 'B' ip_value = me->ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 3 ip_column = 'B' ip_value = me->ls_colaborador-vdsk1 ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 4 ip_column = 'B' ip_value = me->ls_colaborador-kostl ip_style = tp_style_bold_center_guid2 ).
 
-    "------------------------------------------------------------------------------------------------------------------------------------------
-    "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
 
-    "cabeçalho das horas trabalhadas e planeadas
-    lo_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Dia / Mês'         ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
+      "calendários do excel
 
-    "totais de horas trabalhadas e planeadas
-    lo_worksheet->set_cell( ip_row = 6 ip_column = 'D' ip_value = 'Totais'                                ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 7 ip_column = 'D' ip_value = ''       ip_formula = total_planeadas   ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = 8 ip_column = 'D' ip_value = ''       ip_formula = total_trabalhadas ip_style = tp_style_bold_center_guid2 ).
+      me->generate_calendar( ). "gerador do calendario do excel.
 
-    "------------------------------------------------------------------------------------------------------------------------------------------
-    "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
 
-    "horas planeadas e trabalhadas
-    lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
+      "cabeçalho das horas trabalhadas e planeadas
+      lo_worksheet->set_cell( ip_row = 6 ip_column = 'A' ip_value = 'Dia / Mês'         ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
 
-    "------------------------------------------------------------------------------------------------------------------------------------------
-    "------------------------------------------------------------------------------------------------------------------------------------------
+      "totais de horas trabalhadas e planeadas
+      lo_worksheet->set_cell( ip_row = 6  ip_column = 'D' ip_value = 'Totais'                                ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 7  ip_column = 'D' ip_value = ''       ip_formula = total_planeadas   ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 8  ip_column = 'D' ip_value = ''       ip_formula = total_trabalhadas ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 9  ip_column = 'D' ip_value = ''       ip_formula = total_planeadas   ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 10 ip_column = 'D' ip_value = ''       ip_formula = total_trabalhadas ip_style = tp_style_bold_center_guid2 ).
 
-    "cabeçalho do pep
-    lo_worksheet->set_cell( ip_row = 9  ip_column = 'A' ip_value = 'PEP'                 ip_style = tp_style_bold_center_guid  ).
-    lo_worksheet->set_cell( ip_row = 9  ip_column = 'B' ip_value = 'Ausência / Presença' ip_style = tp_style_bold_center_guid  ).
-    lo_worksheet->set_cell( ip_row = 10 ip_column = 'A' ip_value = ''                    ip_style = tp_style_bold_center_guid2 ).
+      "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
 
-    lo_worksheet->set_cell( ip_row = 11 ip_column = 'A' ip_value = 'PEP 1' ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 12 ip_column = 'A' ip_value = 'PEP 1' ip_style = tp_style_bold_center_guid ).
-    lo_worksheet->set_cell( ip_row = 13 ip_column = 'A' ip_value = 'PEP 1' ip_style = tp_style_bold_center_guid ).
+      "horas planeadas e trabalhadas
+      lo_worksheet->set_cell( ip_row = 7 ip_column = 'A' ip_value = 'Horas Planeadas'   ip_style = tp_style_bold_center_guid ).
+      lo_worksheet->set_cell( ip_row = 8 ip_column = 'A' ip_value = 'Horas Trabalhadas' ip_style = tp_style_bold_center_guid ).
 
-    lo_worksheet->set_cell( ip_row = 10 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = 11 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = 12 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
-    lo_worksheet->set_cell( ip_row = 13 ip_column = 'B' ip_value = '880 - Horas Noturnas' ip_style = tp_style_bold_center_guid2 ).
+      "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
 
-    "------------------------------------------------------------------------------------------------------------------------------------------
-    "------------------------------------------------------------------------------------------------------------------------------------------
+      "cabeçalho do pep
+      lo_worksheet->set_cell( ip_row = 9  ip_column = 'A' ip_value = 'PEP'                 ip_style = tp_style_bold_center_guid  ).
+      lo_worksheet->set_cell( ip_row = 9  ip_column = 'B' ip_value = 'Ausência / Presença' ip_style = tp_style_bold_center_guid  ).
 
-    "setup da primeira coluna
-    lo_column = lo_worksheet->get_column( ip_column = 'A' ).
-    lo_column->set_width( ip_width = 30 ).
-    lo_column = lo_worksheet->get_column( ip_column = 'B' ).
-    lo_column->set_width( ip_width = 50 ).
-    lo_column = lo_worksheet->get_column( ip_column = 'D' ).
-    lo_column->set_width( ip_width = 20 ).
+      lo_worksheet->set_cell( ip_row = 10 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 11 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 12 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 13 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 14 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 15 ip_column = 'A' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
 
-    "range de busca para a dropdown
-    DATA(lo_range) = o_xl->add_new_range( ).
-    lo_range->name = 'CollaboratorNumbers'. "nome do range
-    lo_range->set_value(
-      ip_sheet_name   = lv_title "sheet escolhida
-      ip_start_column = 'Z'
-      ip_start_row    = 2
-      ip_stop_column  = 'Z'
-      ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
-    ).
+      lo_worksheet->set_cell( ip_row = 10 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 11 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 12 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 13 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 14 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
+      lo_worksheet->set_cell( ip_row = 15 ip_column = 'B' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid2 ).
 
-    "validacao do range da dropdown
-    lo_data_validation              = lo_worksheet->add_new_data_validation( ).
-    lo_data_validation->type        = zcl_excel_data_validation=>c_type_list.
-    lo_data_validation->formula1    = 'CollaboratorNumbers'. "nome do range
-    lo_data_validation->cell_row    = 10.
-    lo_data_validation->cell_column = 'A'.
-    lo_data_validation->allowblank  = abap_true.
+      "setup da primeira coluna
+      lo_column = lo_worksheet->get_column( ip_column = 'A' ).
+      lo_column->set_width( ip_width = 30 ).
+      lo_column = lo_worksheet->get_column( ip_column = 'B' ).
+      lo_column->set_width( ip_width = 50 ).
+      lo_column = lo_worksheet->get_column( ip_column = 'D' ).
+      lo_column->set_width( ip_width = 20 ).
+
+      "range de busca para a dropdown de ausencias e presencas
+      DATA(lo_range) = o_xl->add_new_range( ).
+      lo_range->name = 'AusenciasPresencas'. "nome do range
+      lo_range->set_value(
+        ip_sheet_name   = 'Colaboradores' "sheet escolhida
+        ip_start_column = 'AA'
+        ip_start_row    = 2
+        ip_stop_column  = 'AA'
+        ip_stop_row     = lines( me->it_aus_pre ) + 1 "limite do range
+      ).
+
+      data: counter_listboxes type i.
+      counter_listboxes = 10.
+
+      do 6 times.
+
+        "validacao do range da dropdown
+        lo_data_validation              = lo_worksheet->add_new_data_validation( ).
+        lo_data_validation->type        = zcl_excel_data_validation=>c_type_list.
+        lo_data_validation->formula1    = 'AusenciasPresencas'. "nome do range
+        lo_data_validation->cell_row    = counter_listboxes.
+        lo_data_validation->cell_column = 'B'.
+        lo_data_validation->allowblank  = abap_true.
+
+        add 1 to counter_listboxes.
+
+      enddo.
+
+      "range de busca para a dropdown de peps
+      lo_range = o_xl->add_new_range( ).
+      lo_range->name = 'PEPS'. "nome do range
+      lo_range->set_value(
+        ip_sheet_name   = 'Colaboradores' "sheet escolhida
+        ip_start_column = 'Z'
+        ip_start_row    = 2
+        ip_stop_column  = 'Z'
+        ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
+      ).
+
+      counter_listboxes = 10.
+
+      do 6 times.
+
+        "validacao do range da dropdown
+        lo_data_validation2              = lo_worksheet->add_new_data_validation( ).
+        lo_data_validation2->type        = zcl_excel_data_validation=>c_type_list.
+        lo_data_validation2->formula1    = 'PEPS'. "nome do range
+        lo_data_validation2->cell_row    = counter_listboxes.
+        lo_data_validation2->cell_column = 'A'.
+        lo_data_validation2->allowblank  = abap_true.
+
+        add 1 to counter_listboxes.
+
+      enddo.
+
+      "------------------------------------------------------------------------------------------------------------------------------------------
+      "------------------------------------------------------------------------------------------------------------------------------------------
+
+      clear: me->ls_colaborador, counter_listboxes.
+
+    endloop.
 
   ENDMETHOD.
 
