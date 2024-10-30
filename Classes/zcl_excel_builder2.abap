@@ -105,6 +105,11 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS set_style .
     METHODS set_sheets .
     METHODS generate_calendar .
+    METHODS convert_excel_column
+      IMPORTING
+        column_int    TYPE i
+      EXPORTING
+        column_string TYPE string.
 ENDCLASS.
 
 
@@ -121,6 +126,36 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
   METHOD append_extension.
 
     CONCATENATE old_extension 'xlsx' INTO new_extension SEPARATED BY '.'.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->CONVERT_EXCEL_COLUMN
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] COLUMN_INT                     TYPE        I
+* | [<---] COLUMN_STRING                  TYPE        STRING
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD convert_excel_column.
+
+    "variavel recebe o parametro de entrada
+    data: lv_column_int type i.
+    lv_column_int = column_int.
+
+    "verifica se o numero é positivo
+    if column_int gt 0.
+
+      DO.
+        DATA(lv_mod) = ( lv_column_int - 1 ) MOD 26. "divide o numero da coluna pela quantidade de letras do alfabeto - 1
+        DATA(lv_div) = lv_column_int DIV 26. "divide o numero da coluna pela quantidade de letras do alfabeto
+        lv_column_int = lv_div. "o numero recebe a quantidade da divisao
+        column_string = sy-abcde+lv_mod(1) && column_string. "string recebe os caracteres referidos
+        IF lv_column_int <= 0.
+          EXIT.
+        ENDIF.
+      ENDDO.
+
+    endif.
 
   ENDMETHOD.
 
@@ -441,6 +476,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA: horas_planeadas TYPE p DECIMALS 2.
     horas_planeadas = '8.00'.
 
+    DATA: lv_lettercollum TYPE string. "letra da coluna
+
+    "formula para dias trabalhados
+    DATA: form_dia_trab TYPE string.
+
     "repete a quantidade de dias que tem o mes
     DO lv_countdays TIMES.
 
@@ -464,7 +504,21 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         "cria a celula
         lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid  ). "cabeçalho do calendário
         lo_worksheet->set_cell( ip_row = 7 ip_column = lv_counterdays ip_value = horas_planeadas  ip_style = tp_style_bold_center_guid2 ). "horas planeadas
-        lo_worksheet->set_cell( ip_row = 8 ip_column = lv_counterdays ip_value = ''               ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
+
+        clear lv_lettercollum.
+
+        "converte o numero da coluna em string da coluna
+        me->convert_excel_column(
+          EXPORTING
+            column_int    = lv_counterdays
+          IMPORTING
+            column_string = lv_lettercollum
+        ).
+
+        clear form_dia_trab.
+        form_dia_trab = '=SUM(' && lv_lettercollum && '10:' && lv_lettercollum && '15)'. "atualiza a formula
+        lo_worksheet->set_cell( ip_row = 8 ip_column = lv_counterdays ip_value = '' ip_formula = form_dia_trab ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
+
 
         "cabeçalho de ausencia de trabalho
         lo_worksheet->set_cell( ip_row = 9 ip_column = lv_counterdays ip_value = 'Tempo' ip_style = tp_style_bold_center_guid ). "horas trabalhadas
@@ -562,14 +616,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "consulta para obter textos de projetos
     "---------------------------------------
 
-    SELECT prps~objnr
-           prps~post1
+    SELECT prps~objnr, "numero do projeto
+           prps~post1  "texto descritivo
       FROM prps
       INNER JOIN jest
-      ON prps~objnr EQ jest~objnr
-      INTO TABLE me->it_projetos
-      WHERE prps~txtsp EQ sy-langu
-      AND jest~inact EQ ''.
+      ON prps~objnr = jest~objnr
+      INTO TABLE @DATA(it_data)
+      WHERE jest~inact EQ ''    "projetos ativos
+      AND prps~post1 NE ''.     "sem linhas vazias
 
     "formacao da linha de textos para projetos
     "---------------------------------------------
@@ -582,6 +636,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDLOOP.
 
     CLEAR stringline.
+
+    "tipo de projeto
+*    select prps~PSPNR,
+*           prps~post1
+*    from prps
+*    inner join jest
+*    on prps~OBJNR = jest~OBJNR
+*    into table @data(it_data)
+*    where jest~inact eq ''                " Apenas status ativos
+*    and prps~post1 ne ''.
 
   ENDMETHOD.
 
