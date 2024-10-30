@@ -24,16 +24,16 @@ CLASS zcl_excel_builder2 DEFINITION
              line TYPE string,
            END OF wa_line_preaus.
 
+    "types para projetos abertos
+    TYPES: BEGIN OF wa_project,
+             objnr TYPE j_objnr,
+             post1 TYPE ps_pspid,
+           END OF wa_project.
+
     "linha unica para guardar projetos
     TYPES: BEGIN OF wa_line_projects,
              line TYPE string,
            END OF wa_line_projects.
-
-    "types para projetos abertos
-    TYPES: BEGIN OF wa_project,
-             objnr TYPE j_objnr,
-             post1 TYPE ps_post1,
-           END OF wa_project.
 
     "informacoes dos colaboradores
     DATA: it_colaboradores TYPE TABLE OF wa_col,
@@ -110,6 +110,8 @@ CLASS zcl_excel_builder2 DEFINITION
         column_int    TYPE i
       EXPORTING
         column_string TYPE string.
+    METHODS get_auspres.
+    METHODS get_projects.
 ENDCLASS.
 
 
@@ -605,11 +607,56 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_AUSPRES
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_auspres.
+
+    "consulta para obter textos de ausencia e presenca
+    "-------------------------------------------
+
+    SELECT t554s~subty,
+           t554t~atext
+      FROM t554s
+      INNER JOIN t554t
+      ON t554s~moabw = t554t~moabw
+      INTO TABLE @me->it_aus_pre
+      WHERE t554s~moabw EQ 19
+      AND   t554t~moabw EQ 19
+      AND   t554t~sprsl EQ @sy-langu
+      AND   t554t~atext NE ''
+      AND   t554s~subty EQ '0100'.
+
+    "formacao da linha de textos para ausencia e presenca
+    "----------------------------------------------------
+
+    DATA stringline TYPE string.
+
+    "itera sobre a tabela de textos concatenando Tipos de presença e ausência com os Textos de ausência e presença
+    LOOP AT me->it_aus_pre INTO me->ls_aus_pre.
+      stringline = me->ls_aus_pre-subty. "casting do numero
+      CONCATENATE stringline me->ls_aus_pre-atext INTO me->ls_line_preaus-line SEPARATED BY ' - '.
+      APPEND me->ls_line_preaus TO me->it_line_preaus.
+    ENDLOOP.
+
+    "verifica se algum dado foi enviado
+    IF me->it_line_preaus IS INITIAL.
+      MESSAGE | Não foi possível receber os dados da base de dados | TYPE 'S' DISPLAY LIKE 'E'.
+    ENDIF.
+
+    CLEAR stringline.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->GET_DATA
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] COLABORADORES                  TYPE        ZCOL_TT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_data.
+
+    DATA stringline TYPE string.
 
     me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
                                     ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
@@ -632,65 +679,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "consulta para obter textos de ausencia e presenca
     "-------------------------------------------
 
-    SELECT t554s~subty,
-           t554t~atext
-    FROM t554s
-    INNER JOIN t554t
-    ON t554s~moabw = t554t~moabw
-    INTO TABLE @me->it_aus_pre
-    WHERE t554s~moabw EQ 19
-    AND   t554t~moabw EQ 19
-    AND   t554t~sprsl EQ @sy-langu
-    AND   t554t~atext NE ''
-    AND   t554s~subty EQ '0100'.
-
-    "formacao da linha de textos para ausencia e presenca
-    "----------------------------------------------------
-
-    DATA stringline TYPE string.
-
-    "itera sobre a tabela de textos concatenando Tipos de presença e ausência com os Textos de ausência e presença
-    LOOP AT me->it_aus_pre INTO me->ls_aus_pre.
-      stringline = me->ls_aus_pre-subty. "casting do numero
-      CONCATENATE stringline me->ls_aus_pre-atext INTO me->ls_line_preaus-line SEPARATED BY ' - '.
-      APPEND me->ls_line_preaus TO me->it_line_preaus.
-    ENDLOOP.
-
-    CLEAR stringline.
+    me->get_auspres( ).
 
     "consulta para obter textos de projetos
     "---------------------------------------
 
-    SELECT prps~objnr, "numero do projeto
-           prps~post1  "texto descritivo
-      FROM prps
-      INNER JOIN jest
-      ON prps~objnr = jest~objnr
-      INTO TABLE @DATA(it_data)
-      WHERE jest~inact EQ ''    "projetos ativos
-      AND prps~post1 NE ''.     "sem linhas vazias
+    me->get_projects( ).
 
-    "formacao da linha de textos para projetos
-    "---------------------------------------------
-
-    "itera sobre a tabela de textos concatenando o numero dos projetos à descricao dos projetos
-    LOOP AT me->it_projetos INTO me->ls_projetos.
-      stringline = me->ls_projetos-objnr.
-      CONCATENATE stringline me->ls_projetos-post1 INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
-      APPEND me->ls_linha_projeto TO me->it_linha_projetos.
-    ENDLOOP.
-
-    CLEAR stringline.
-
-    "tipo de projeto
-*    select prps~PSPNR,
-*           prps~post1
-*    from prps
-*    inner join jest
-*    on prps~OBJNR = jest~OBJNR
-*    into table @data(it_data)
-*    where jest~inact eq ''                " Apenas status ativos
-*    and prps~post1 ne ''.
 
   ENDMETHOD.
 
@@ -737,6 +732,37 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDIF.
 
     full_path = fullpath. "retorna caminho completo do arquivo
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_PROJECTS
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_projects.
+
+    DATA stringline TYPE string.
+
+    SELECT proj~objnr,
+           proj~pspid
+      FROM proj AS proj
+      INNER JOIN jest AS jest
+      ON proj~objnr = jest~objnr
+            INTO TABLE @it_projetos
+     WHERE jest~inact EQ ''.
+
+    "formacao da linha de textos para projetos
+    "---------------------------------------------
+
+    "itera sobre a tabela de textos concatenando o numero dos projetos à descricao dos projetos
+    LOOP AT me->it_projetos INTO me->ls_projetos.
+      stringline = me->ls_projetos-objnr.
+      CONCATENATE stringline me->ls_projetos-post1 INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
+      APPEND me->ls_linha_projeto TO me->it_linha_projetos.
+    ENDLOOP.
+
+    CLEAR stringline.
 
   ENDMETHOD.
 
