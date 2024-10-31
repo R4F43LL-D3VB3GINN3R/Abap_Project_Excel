@@ -464,7 +464,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_calendar.
 
+    "metodo para capturar a data enviada pelo programa
     me->get_date( date = gv_datemonth ).
+
+    "verificacao para envio de data
+    if gv_datemonth is initial.
+      message | 'Para impressão do calendário é preciso a data' | type 'S' display like 'E'.
+    endif.
 
     "buscando a quantidade de dias no mes
     DATA: lv_date          TYPE /osp/dt_date, "data enviada
@@ -492,8 +498,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "-------------------------------------------
 
-*    lv_date = sy-datum.
-    lv_date = gv_datemonth. "recebe a data atual
+    lv_date = gv_datemonth. "recebe a data enviada pelo programa
 
     "funcao retorna a quantidade de dias do mes
     CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
