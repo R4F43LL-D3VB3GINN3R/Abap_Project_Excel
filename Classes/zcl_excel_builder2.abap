@@ -1,92 +1,96 @@
-CLASS zcl_excel_builder2 DEFINITION
-  PUBLIC
-  FINAL
-  CREATE PUBLIC .
+class ZCL_EXCEL_BUILDER2 definition
+  public
+  final
+  create public .
 
-  PUBLIC SECTION.
+public section.
 
+  types:
     "types de informacoes de colaboradores
-    TYPES: BEGIN OF wa_col,
+    BEGIN OF wa_col,
              pernr TYPE pa0001-pernr, "Número Pessoal
              sname TYPE pa0002-cname, "Nome
              vdsk1 TYPE pa0001-vdsk1, "Chave de Organizacao
              kostl TYPE pa0001-kostl, "Centro de Custo
            END OF wa_col .
-
+  types:
     "types de ausencias de precensas
-    TYPES: BEGIN OF wa_pre_aus,
+    BEGIN OF wa_pre_aus,
              subty TYPE awart,  "t554s-subty Tipos de presença e ausência
              atext TYPE abwtxt, "t554t-atext Textos de ausência e presença
-           END OF wa_pre_aus.
-
+           END OF wa_pre_aus .
+  types:
     "linha unica para guardar ausencia e presença
-    TYPES: BEGIN OF wa_line_preaus,
+    BEGIN OF wa_line_preaus,
              line TYPE string,
-           END OF wa_line_preaus.
-
+           END OF wa_line_preaus .
+  types:
     "types para projetos abertos
-    TYPES: BEGIN OF wa_project,
+    BEGIN OF wa_project,
              objnr TYPE j_objnr,
-             post1 TYPE ps_pspid,
-           END OF wa_project.
-
+             pspid TYPE ps_pspid,
+             post1 TYPE ps_post1,
+           END OF wa_project .
+  types:
     "linha unica para guardar projetos
-    TYPES: BEGIN OF wa_line_projects,
+    BEGIN OF wa_line_projects,
              line TYPE string,
-           END OF wa_line_projects.
+           END OF wa_line_projects .
 
+  data: gv_datemonth type sy-datum.
+
+  data:
     "informacoes dos colaboradores
-    DATA: it_colaboradores TYPE TABLE OF wa_col,
-          ls_colaborador   TYPE wa_col,
-          tt_colaboradores TYPE zcol_tt,
-          st_colaborador   TYPE zcol_st.
-
+    it_colaboradores TYPE TABLE OF wa_col .
+  data LS_COLABORADOR type WA_COL .
+  data TT_COLABORADORES type ZCOL_TT .
+  data ST_COLABORADOR type ZCOL_ST .
+  data:
     "informacoes de ausencia e presenca
-    DATA: it_aus_pre TYPE TABLE OF wa_pre_aus,
-          ls_aus_pre TYPE wa_pre_aus.
-
+    it_aus_pre TYPE TABLE OF wa_pre_aus .
+  data LS_AUS_PRE type WA_PRE_AUS .
+  data:
     "linha de ausencia e presenca concatenada
-    DATA: it_line_preaus TYPE TABLE OF wa_line_preaus,
-          ls_line_preaus TYPE wa_line_preaus.
-
+    it_line_preaus TYPE TABLE OF wa_line_preaus .
+  data LS_LINE_PREAUS type WA_LINE_PREAUS .
     "celula de horas trabalhadas e planeadas
-    DATA: total_planeadas   TYPE string,
-          total_trabalhadas TYPE string.
-
+  data TOTAL_PLANEADAS type STRING .
+  data TOTAL_TRABALHADAS type STRING .
+  data:
     "tabela e estrutura de projetos abertos
-    DATA: it_projetos TYPE TABLE OF wa_project,
-          ls_projetos TYPE wa_project.
-
+    it_projetos TYPE TABLE OF wa_project .
+  data LS_PROJETOS type WA_PROJECT .
+  data:
     "tabela de linha concatenada de projetos
-    DATA: it_linha_projetos TYPE TABLE OF wa_line_projects,
-          ls_linha_projeto  TYPE wa_line_projects.
-
-    DATA e_result TYPE zrla_result .
-
+    it_linha_projetos TYPE TABLE OF wa_line_projects .
+  data LS_LINHA_PROJETO type WA_LINE_PROJECTS .
+  data E_RESULT type ZRLA_RESULT .
     "objetos de construcao de arquivos excel
-    DATA: o_xl         TYPE REF TO zcl_excel,
-          lo_worksheet TYPE REF TO zcl_excel_worksheet.
-
+  data O_XL type ref to ZCL_EXCEL .
+  data LO_WORKSHEET type ref to ZCL_EXCEL_WORKSHEET .
     "objetos de componentes do excel
-    DATA: lo_column                  TYPE REF TO zcl_excel_column,
-          lo_data_validation         TYPE REF TO zcl_excel_data_validation,
-          lo_data_validation2        TYPE REF TO zcl_excel_data_validation,
-          lo_range                   TYPE REF TO zcl_excel_range,
-          o_converter                TYPE REF TO zcl_excel_converter,
-          lo_style                   TYPE REF TO zcl_excel_style,
-          o_border_dark              TYPE REF TO zcl_excel_style_border,
-          o_border_light             TYPE REF TO zcl_excel_style_border,
-          tp_style_bold_center_guid  TYPE zexcel_cell_style,
-          tp_style_bold_center_guid2 TYPE zexcel_cell_style.
+  data LO_COLUMN type ref to ZCL_EXCEL_COLUMN .
+  data LO_DATA_VALIDATION type ref to ZCL_EXCEL_DATA_VALIDATION .
+  data LO_DATA_VALIDATION2 type ref to ZCL_EXCEL_DATA_VALIDATION .
+  data LO_RANGE type ref to ZCL_EXCEL_RANGE .
+  data O_CONVERTER type ref to ZCL_EXCEL_CONVERTER .
+  data LO_STYLE type ref to ZCL_EXCEL_STYLE .
+  data O_BORDER_DARK type ref to ZCL_EXCEL_STYLE_BORDER .
+  data O_BORDER_LIGHT type ref to ZCL_EXCEL_STYLE_BORDER .
+  data TP_STYLE_BOLD_CENTER_GUID type ZEXCEL_CELL_STYLE .
+  data TP_STYLE_BOLD_CENTER_GUID2 type ZEXCEL_CELL_STYLE .
+  data OL_HYPERLINK type ref to ZCL_EXCEL_HYPERLINK .
 
-    METHODS get_data
-      IMPORTING
-        !colaboradores TYPE zcol_tt.
-    METHODS download_xls .
-    METHODS display_fast_excel
-      IMPORTING
-        !i_table_content TYPE REF TO data
-        !i_table_name    TYPE string .
+  methods GET_DATA
+    importing
+      !COLABORADORES type ZCOL_TT.
+  methods DOWNLOAD_XLS .
+  methods DISPLAY_FAST_EXCEL
+    importing
+      !I_TABLE_CONTENT type ref to DATA
+      !I_TABLE_NAME type STRING .
+  methods get_date
+    importing date type sy-datum.
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -460,6 +464,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_calendar.
 
+    me->get_date( date = gv_datemonth ).
+
     "buscando a quantidade de dias no mes
     DATA: lv_date          TYPE /osp/dt_date, "data enviada
           lv_countdays     TYPE /osp/dt_day,  "dias do mes recebidos
@@ -486,7 +492,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "-------------------------------------------
 
-    lv_date = sy-datum. "recebe a data atual
+*    lv_date = sy-datum.
+    lv_date = gv_datemonth. "recebe a data atual
 
     "funcao retorna a quantidade de dias do mes
     CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
@@ -615,17 +622,17 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "consulta para obter textos de ausencia e presenca
     "-------------------------------------------
 
-    SELECT t554s~subty,
-           t554t~atext
-      FROM t554s
-      INNER JOIN t554t
-      ON t554s~moabw = t554t~moabw
+    SELECT t554s~subty,               "tipo de ausência e presenca
+           t554t~atext                "Texto descritivo
+      FROM t554s                      "Da tabela do de Tipos de presença e ausência
+      INNER JOIN t554t                "Junta da tabela de Textos de ausência e presença
+      ON t554s~moabw = t554t~moabw    "Juntas por chave de agrupamento em RH
       INTO TABLE @me->it_aus_pre
       WHERE t554s~moabw EQ 19
       AND   t554t~moabw EQ 19
-      AND   t554t~sprsl EQ @sy-langu
-      AND   t554t~atext NE ''
-      AND   t554s~subty EQ '0100'.
+      AND   t554t~sprsl EQ @sy-langu  "Onde o idioma for aquele do sistema
+      AND   t554t~atext NE ''         "O texto não esteja vazio
+      and   t554s~endda GT @sy-datum. "E a data fim seja maior do que a data final
 
     "formacao da linha de textos para ausencia e presenca
     "----------------------------------------------------
@@ -658,18 +665,19 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     DATA stringline TYPE string.
 
-    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
-                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
-                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
-                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
-                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
-                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
-                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
-                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
-                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
-                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
+"mockdata
+*    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
+*                                    ( pernr = '2'  sname = 'Colaborador B' vdsk1 = 'PT02'  kostl = '002'  )
+*                                    ( pernr = '3'  sname = 'Colaborador C' vdsk1 = 'PT03'  kostl = '003'  )
+*                                    ( pernr = '4'  sname = 'Colaborador D' vdsk1 = 'PT04'  kostl = '004'  )
+*                                    ( pernr = '5'  sname = 'Colaborador E' vdsk1 = 'PT05'  kostl = '005'  )
+*                                    ( pernr = '6'  sname = 'Colaborador F' vdsk1 = 'PT06'  kostl = '006'  )
+*                                    ( pernr = '7'  sname = 'Colaborador G' vdsk1 = 'PT07'  kostl = '007'  )
+*                                    ( pernr = '8'  sname = 'Colaborador H' vdsk1 = 'PT08'  kostl = '008'  )
+*                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
+*                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
 
-*    me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
+    me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
 
     "verifica se algum dado foi enviado
     IF colaboradores IS INITIAL.
@@ -688,6 +696,18 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
   ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER2->GET_DATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] DATE                           TYPE        SY-DATUM
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method get_date.
+
+    me->gv_datemonth = date.
+
+  endmethod.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -744,13 +764,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     DATA stringline TYPE string.
 
-    SELECT proj~objnr,
-           proj~pspid
+    SELECT proj~objnr, "Nº objeto
+           proj~pspid, "Definição do projeto
+           proj~post1  "PS: descrição breve (1ª linha de texto)
       FROM proj AS proj
       INNER JOIN jest AS jest
       ON proj~objnr = jest~objnr
             INTO TABLE @it_projetos
-     WHERE jest~inact EQ ''.
+     WHERE jest~inact EQ ''
+      AND jest~stat EQ 'I0002'.
 
     "formacao da linha de textos para projetos
     "---------------------------------------------
@@ -758,7 +780,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "itera sobre a tabela de textos concatenando o numero dos projetos à descricao dos projetos
     LOOP AT me->it_projetos INTO me->ls_projetos.
       stringline = me->ls_projetos-objnr.
-      CONCATENATE stringline me->ls_projetos-post1 INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
+      CONCATENATE stringline me->ls_projetos-post1 me->ls_projetos-pspid INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
       APPEND me->ls_linha_projeto TO me->it_linha_projetos.
     ENDLOOP.
 
@@ -783,7 +805,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     TRY.
         lo_worksheet->set_title( ip_title = lv_title ).
       CATCH zcx_excel INTO DATA(lx_excel).
-        " Trate a exceção e exiba uma mensagem
         MESSAGE lx_excel->get_text( ) TYPE 'E'.
     ENDTRY.
 
@@ -807,8 +828,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "linhas da tabela
     LOOP AT me->it_colaboradores INTO me->ls_colaborador.
 
+*      =HIPERLIGAÇÃO("#'  00000001 - Colaborador A'!B2"; "Colaborador A") "TRABALHAR COM ISTO!!!!
+
+      data: link type string.
+      link = | '=HIPERLINK({ me->ls_colaborador-pernr } - { me->ls_colaborador-sname } A!B2)' |.
+
       TRY.
-          lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
+          lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2  ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value = ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value = ls_colaborador-vdsk1 ip_style = tp_style_bold_center_guid2 ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value = ls_colaborador-kostl ip_style = tp_style_bold_center_guid2 ).
@@ -933,7 +959,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     TRY.
         LOOP AT me->it_colaboradores INTO me->ls_colaborador.
 
-          lv_title = | { me->ls_colaborador-pernr } - { me->ls_colaborador-sname }|.
+          lv_title = | { me->ls_colaborador-pernr } - { me->ls_colaborador-sname }|. "titulo da sheet recebe o id + nome do colaborador
 
           "criando uma nova worksheet
           lo_worksheet = o_xl->add_new_worksheet( ).
