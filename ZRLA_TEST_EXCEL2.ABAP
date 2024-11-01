@@ -6,7 +6,7 @@
 report zrla_test_excel2.
 
 "tela de selecao + dados
-include zrla_top_data.
+include zrla_top_data  .
 
 "classe de eventos alv
 include zrla_alv2.
