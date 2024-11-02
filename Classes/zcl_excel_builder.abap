@@ -3,7 +3,7 @@ class zcl_excel_builder definition
   final
   create public .
 
-  public section.
+  public section .
 
     interfaces zif_excel_book_properties .
     interfaces zif_excel_book_protection .
