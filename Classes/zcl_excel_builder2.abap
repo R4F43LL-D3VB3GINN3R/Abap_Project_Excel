@@ -1,7 +1,7 @@
 class ZCL_EXCEL_BUILDER2 definition
   public
   final
-  create public .
+  create public  .
 
 public section.
 
