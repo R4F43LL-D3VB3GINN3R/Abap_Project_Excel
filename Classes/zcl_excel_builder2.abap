@@ -563,12 +563,19 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           "busca o a quantidade de horarios diádios do colaborador
           READ TABLE me->tb_psp INTO me->wa_psp INDEX lv_counterployees.
 
-          horas_planeadas = me->wa_psp-stdaz.
+          "verifica se é feriado
+          case me->wa_psp-ftkla.
+            when 1.
+              horas_planeadas = '0'.
+            when 0.
+              horas_planeadas = me->wa_psp-stdaz.
+          endcase.
+
           CLEAR me->wa_psp.
 
         ENDIF.
 
-        ADD 1 TO lv_counterployees. "icrementa o contador de horarios
+        ADD 1 TO lv_counterployees. "incrementa o contador de horarios
 
         "cria a celula
         TRY.
