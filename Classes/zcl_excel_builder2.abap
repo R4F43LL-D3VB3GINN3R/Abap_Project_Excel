@@ -37,7 +37,13 @@ CLASS zcl_excel_builder2 DEFINITION
         line TYPE string,
       END OF wa_line_projects .
 
+    "data do mes
     DATA: gv_datemonth TYPE sy-datum.
+
+    "work schedule do colaborador
+    DATA:
+      tb_psp TYPE STANDARD TABLE OF ptpsp,
+      wa_psp TYPE ptpsp.
 
     DATA:
       "informacoes dos colaboradores
@@ -116,6 +122,12 @@ CLASS zcl_excel_builder2 DEFINITION
         column_string TYPE string.
     METHODS get_auspres.
     METHODS get_projects.
+    METHODS get_work_schedule
+      IMPORTING pernr TYPE p_pernr.
+    METHODS set_rangemonthdate
+      EXPORTING
+        begin_date TYPE sy-datum
+        end_date   TYPE sy-datum.
 ENDCLASS.
 
 
@@ -473,14 +485,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDIF.
 
     "buscando a quantidade de dias no mes
-    DATA: lv_date          TYPE /osp/dt_date, "data enviada
-          lv_countdays     TYPE /osp/dt_day,  "dias do mes recebidos
-          lv_countdays2    TYPE i,            "dias do mes em inteiro
-          lv_counterdays   TYPE i,            "contador de dias
-          lv_newdate       TYPE sy-datum,     "nova data formatada
-          lv_stringdaydate TYPE string,       "dia formatado
-          lv_day           TYPE i,            "dia em inteiro
-          lv_strday        TYPE string.       "dia em string
+    DATA: lv_date           TYPE /osp/dt_date, "data enviada
+          lv_countdays      TYPE /osp/dt_day,  "dias do mes recebidos
+          lv_countdays2     TYPE i,            "dias do mes em inteiro
+          lv_counterdays    TYPE i,            "contador de dias
+          lv_newdate        TYPE sy-datum,     "nova data formatada
+          lv_stringdaydate  TYPE string,       "dia formatado
+          lv_day            TYPE i,            "dia em inteiro
+          lv_strday         TYPE string,       "dia em string
+          lv_counterployees TYPE i.           "index da tabela de horarios de trabalho
 
     "rever as horas trabalhadas conforme consulta - aguardar info adicional
     DATA: horas_planeadas TYPE p DECIMALS 2.
@@ -519,6 +532,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "junta ano + mes e primeiro dia do mes
     CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
+    "-------------------------------------------
+
+    lv_counterployees = 1. "inicia o contador de index da tabela horarios
+
+    "pega os horarios de cada funcionario por index de tabela
+    READ TABLE me->it_colaboradores INTO me->ls_colaborador INDEX lv_counterployees.
+    me->get_work_schedule( pernr = me->ls_colaborador-pernr ). "metodo para buscar work schedule
+
+    "-------------------------------------------
+
     "repete a quantidade de dias que tem o mes
     DO lv_countdays TIMES.
 
@@ -536,8 +559,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         IF lv_stringdaydate CS 'Sábado' OR lv_stringdaydate CS 'Domingo'.
           horas_planeadas = '0'.
         ELSE.
-          horas_planeadas = '8'.
+
+          "busca o a quantidade de horarios diádios do colaborador
+          READ TABLE me->tb_psp INTO me->wa_psp INDEX lv_counterployees.
+
+          horas_planeadas = me->wa_psp-stdaz.
+          CLEAR me->wa_psp.
+
         ENDIF.
+
+        ADD 1 TO lv_counterployees. "icrementa o contador de horarios
 
         "cria a celula
         TRY.
@@ -613,7 +644,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDDO.
 
     lv_counterdays = 5. "reseta o contador para a 5th coluna
+    lv_counterployees = 1. "reseta o contador de horarios de trabalho
     CLEAR: lv_day, lv_strday. "limpa os contadores de dias em string e int.
+
+    REFRESH me->tb_psp.
+
 
   ENDMETHOD.
 
@@ -624,28 +659,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_auspres.
 
-    "tratamento de data final do mes
-    "-------------------------------------------
+    data: begin_month type begda,
+          end_month type endda.
 
-    DATA: lv_date      TYPE /osp/dt_date, "data enviada
-          lv_countdays TYPE /osp/dt_day.  "dias do mes recebidos
-
-    DATA: lv_str_countdays TYPE string. "dias do mes em string
-    DATA: new_endmonth TYPE string. "data final formatada
-
-    lv_date = me->gv_datemonth. "data recebe a data enviada pelo programa
-
-    "funcao retorna a quantidade de dias do mes
-    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
-      EXPORTING
-        iv_date = lv_date
+    "recebe o range do inicio e o final do mes
+    me->set_rangemonthdate(
       IMPORTING
-        ev_days = lv_countdays.
-
-    lv_str_countdays = lv_countdays. "casting >> int to str
-
-    new_endmonth = lv_date+0(6). "recebe o ano e o mês
-    CONCATENATE new_endmonth lv_str_countdays INTO new_endmonth. "concatena ano / mes e quantidade de dias do mes
+        begin_date = begin_month
+        end_date   = end_month
+    ).
 
     "consulta para obter textos de ausencia e presenca
     "-------------------------------------------
@@ -657,11 +679,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ON t554s~moabw = t554t~moabw    "Juntas por chave de agrupamento em RH
       INTO TABLE @me->it_aus_pre
       WHERE t554s~moabw EQ 19
-*      AND   t554t~moabw EQ 19
-      AND   t554t~sprsl EQ @sy-langu  "Onde o idioma for aquele do sistema
-      AND   t554t~atext NE ''         "O texto não esteja vazio
-      AND   t554s~endda GT @sy-datum  "E a data fim seja maior do que a data atual
-      AND   t554s~begda LT @new_endmonth.
+      AND   t554t~moabw EQ 19
+      AND   t554t~sprsl EQ @sy-langu      "Onde o idioma for aquele do sistema
+      AND   t554t~atext NE ''             "O texto não esteja vazio
+      AND   t554s~endda GT @end_month     "E a data fim seja maior do que a data final do mes
+      AND   t554s~begda LT @begin_month   "E a data inicio maior que a data final do mes
+      AND   t554s~subty EQ t554t~awart.   "Onde o tipo de ausenci e presenca é igual ao Texto de ausência e presença
 
     "formacao da linha de textos para ausencia e presenca
     "----------------------------------------------------
@@ -825,6 +848,37 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WORK_SCHEDULE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] PERNR                          TYPE        P_PERNR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_work_schedule.
+
+    DATA: begda TYPE begda,
+          endda TYPE endda.
+
+    "recebe range do mes enviado
+    me->set_rangemonthdate(
+      IMPORTING
+        begin_date = begda
+        end_date   = endda
+    ).
+
+    CALL FUNCTION 'HR_PERSONAL_WORK_SCHEDULE'
+      EXPORTING
+        pernr             = pernr
+        begda             = begda
+        endda             = endda
+        switch_activ      = '1'
+        i0001_i0007_error = '0'
+        read_cluster      = ''
+      TABLES
+        perws             = me->tb_psp.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->SET_DATABASE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -976,6 +1030,41 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDTRY.
 
     lv_index = 2. "reseta o contador
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_RANGEMONTHDATE
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] BEGIN_DATE                     TYPE        SY-DATUM
+* | [<---] END_DATE                       TYPE        SY-DATUM
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD set_rangemonthdate.
+
+    "tratamento de data final do mes
+    "-------------------------------------------
+
+    DATA: lv_date      TYPE /osp/dt_date, "data enviada
+          lv_countdays TYPE /osp/dt_day.  "dias do mes recebidos
+
+    DATA: lv_str_countdays TYPE string. "dias do mes em string
+
+    lv_date = me->gv_datemonth. "data recebe a data enviada pelo programa
+
+    "funcao retorna a quantidade de dias do mes
+    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
+      EXPORTING
+        iv_date = lv_date
+      IMPORTING
+        ev_days = lv_countdays.
+
+    lv_str_countdays = lv_countdays. "casting >> int to str
+
+    end_date = lv_date+0(6). "recebe o ano e o mês
+    begin_date = lv_date+0(6). "recebe o ano e o mês
+    CONCATENATE end_date lv_str_countdays INTO end_date. "concatena ano / mes e quantidade de dias do mes
+    CONCATENATE begin_date '01' INTO begin_date. "concatena o mês para a data inicial.
 
   ENDMETHOD.
 
