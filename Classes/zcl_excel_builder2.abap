@@ -624,6 +624,29 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_auspres.
 
+    "tratamento de data final do mes
+    "-------------------------------------------
+
+    DATA: lv_date      TYPE /osp/dt_date, "data enviada
+          lv_countdays TYPE /osp/dt_day.  "dias do mes recebidos
+
+    DATA: lv_str_countdays TYPE string. "dias do mes em string
+    DATA: new_endmonth TYPE string. "data final formatada
+
+    lv_date = me->gv_datemonth. "data recebe a data enviada pelo programa
+
+    "funcao retorna a quantidade de dias do mes
+    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
+      EXPORTING
+        iv_date = lv_date
+      IMPORTING
+        ev_days = lv_countdays.
+
+    lv_str_countdays = lv_countdays. "casting >> int to str
+
+    new_endmonth = lv_date+0(6). "recebe o ano e o mês
+    CONCATENATE new_endmonth lv_str_countdays INTO new_endmonth. "concatena ano / mes e quantidade de dias do mes
+
     "consulta para obter textos de ausencia e presenca
     "-------------------------------------------
 
@@ -634,10 +657,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ON t554s~moabw = t554t~moabw    "Juntas por chave de agrupamento em RH
       INTO TABLE @me->it_aus_pre
       WHERE t554s~moabw EQ 19
-      AND   t554t~moabw EQ 19
+*      AND   t554t~moabw EQ 19
       AND   t554t~sprsl EQ @sy-langu  "Onde o idioma for aquele do sistema
       AND   t554t~atext NE ''         "O texto não esteja vazio
-      AND   t554s~endda GT @sy-datum. "E a data fim seja maior do que a data final
+      AND   t554s~endda GT @sy-datum  "E a data fim seja maior do que a data atual
+      AND   t554s~begda LT @new_endmonth.
 
     "formacao da linha de textos para ausencia e presenca
     "----------------------------------------------------
@@ -710,7 +734,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_date.
 
-    me->gv_datemonth = date.
+    "se a data nao for enviada...
+    "envia a data atual do sistema.
+    IF date IS INITIAL.
+      me->gv_datemonth = sy-datum.
+    ELSE.
+      me->gv_datemonth = date.
+    ENDIF.
 
   ENDMETHOD.
 
