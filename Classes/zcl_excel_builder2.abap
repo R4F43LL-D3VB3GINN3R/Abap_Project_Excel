@@ -137,7 +137,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_excel_builder2 IMPLEMENTATION.
+CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -840,8 +840,8 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
       FROM proj AS proj
       INNER JOIN jest AS jest
       ON proj~objnr = jest~objnr
-            INTO TABLE @it_projetos
-     WHERE jest~inact EQ ''
+      INTO TABLE @it_projetos
+      WHERE jest~inact EQ ''
       AND jest~stat EQ 'I0002'.
 
     "formacao da linha de textos para projetos
@@ -1019,6 +1019,8 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
 
     ENDLOOP.
 
+    lv_index = 2. "reseta o contador
+
     "----------------------------------------------------------------------------
 
     "setup das colunas
@@ -1041,8 +1043,6 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
       CATCH zcx_excel INTO lx_excel.
         MESSAGE lx_excel->get_text( ) TYPE 'E'.
     ENDTRY.
-
-    lv_index = 2. "reseta o contador
 
   ENDMETHOD.
 
@@ -1178,7 +1178,7 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
             ip_start_column = 'AA'
             ip_start_row    = 2
             ip_stop_column  = 'AA'
-            ip_stop_row     = lines( me->it_aus_pre ) + 1 "limite do range
+            ip_stop_row     = lines( me->it_line_preaus ) + 1 "limite do range
           ).
 
           "range de busca para a dropdown de peps
@@ -1189,7 +1189,7 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
             ip_start_column = 'AB'
             ip_start_row    = 2
             ip_stop_column  = 'AB'
-            ip_stop_row     = lines( me->it_colaboradores ) + 1 "limite do range
+            ip_stop_row     = lines( me->it_linha_projetos ) + 1 "limite do range
           ).
 
           "contador para a quantidade de celulas de validacao
