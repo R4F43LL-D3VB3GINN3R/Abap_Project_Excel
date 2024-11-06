@@ -190,20 +190,38 @@ FORM display_table.
 
       "define a coordenada da celula
       lv_str_coord = lv_coord_num.
-      CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10
+      CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10 ou "B10
       CONDENSE lv_str_coord NO-GAPS.
 
       CLEAR cell->cell_value. "limpa a celula
 
-      "itera pelos 6 projetos --> A10 - A11 - A12 - A13 - A14 - A15
+      "itera pelos 6 projetos --> A10 - A11 - A12 - A13 - A14 - A15 ou B10 - B11 - B12 - B13 - B14 - B15
       DO 6 TIMES.
 
         "le a celula de acordo com a coordenada
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord.
+        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10
 
         "verifica se o colaborador trabalhou em algum projeto
         IF cell->cell_value NE 'Selecione'.
           ls_timesheet-pep = cell->cell_value.
+        "se nao trabalhou, procuramos algum motivo de ausencia
+        ELSE.
+          lv_coord = 'B'.
+          CLEAR lv_str_coord.
+          lv_str_coord = lv_coord_num.
+          CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10 ou "B10
+          CONDENSE lv_str_coord NO-GAPS.
+
+          "le a celula de acordo com a coordenada
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10
+
+          IF cell->cell_value NE 'Selecione'.
+            ls_timesheet-pep = cell->cell_value.
+          ENDIF.
+        ENDIF.
+
+        "se houve algum projeto ou motivo de ausencia
+        IF ls_timesheet-PEP is not initial.
 
           "itera pelo calendário
           DO 30 TIMES.
@@ -235,6 +253,7 @@ FORM display_table.
         ENDIF.
 
         "redefine a coordenada para o proximo projeto
+        lv_coord = 'A'.
         ADD 1 TO lv_coord_num.
         lv_str_coord = lv_coord_num.
         CONCATENATE lv_coord lv_str_coord INTO lv_str_coord.
@@ -258,28 +277,28 @@ FORM display_table.
 
       ENDDO.
 
-      "redefine o index de hora e dia
-      index_hour = 139.
-      index_day = 11.
+    "redefine o index de hora e dia
+    index_hour = 139.
+    index_day = 11.
 
-      CLEAR ls_timesheet.
+    CLEAR ls_timesheet.
 
-      "----------------------------------------------------------------------
+    "----------------------------------------------------------------------
 
-      flag_next_sheet = abap_true.         "pode passar para a proxima sheet
-      lv_index = 2.                        "reinicia o index
-      CLEAR: lv_str_coord.                 "limpa a coordenada
-
-    ENDWHILE.
-
-    "passa para a próxima sheet
-    ADD 1 TO i.
-    flag_next_sheet = abap_false.
-
-    lv_coord_num = 10. "redefine a linha da coordenada
+    flag_next_sheet = abap_true.         "pode passar para a proxima sheet
+    lv_index = 2.                        "reinicia o index
+    CLEAR: lv_str_coord.                 "limpa a coordenada
 
   ENDWHILE.
 
-  cl_demo_output=>display( it_timesheet ). "display da tabela interna
+  "passa para a próxima sheet
+  ADD 1 TO i.
+  flag_next_sheet = abap_false.
+
+  lv_coord_num = 10. "redefine a linha da coordenada
+
+ENDWHILE.
+
+cl_demo_output=>display( it_timesheet ). "display da tabela interna
 
 ENDFORM.
