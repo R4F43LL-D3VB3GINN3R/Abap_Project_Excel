@@ -42,7 +42,7 @@ index_day = 11.
 
 "index da hora trabalhada no dia
 DATA: index_hour TYPE i.
-index_hour = 139.
+index_hour = 143.
 
 "coordenada da celula
 DATA: lv_coord     TYPE string,
@@ -75,7 +75,7 @@ AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_path. "insere o ícone de procura
 
 START-OF-SELECTION.
   PERFORM get_file.
-  PERFORM display_table.
+  PERFORM get_data.
 
 END-OF-SELECTION.
 
@@ -132,7 +132,7 @@ FORM get_file.
 
 ENDFORM.
 
-FORM display_table.
+FORM get_data.
 
   CLEAR: gt_file_data.
 
@@ -149,6 +149,8 @@ FORM display_table.
 
     "tratamos cada sheet individualmente e só passamos para a próxima quando a flag for ativa
     WHILE flag_next_sheet EQ abap_false.
+
+      clear ls_timesheet.
 
       "-----------------------------------------------------
       "           cabeçalho de colaboradores
@@ -194,13 +196,14 @@ FORM display_table.
       CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10 ou "B10
       CONDENSE lv_str_coord NO-GAPS.
 
-      CLEAR cell->cell_value. "limpa a celula
-
       "itera pelos 6 projetos --> A10 - A11 - A12 - A13 - A14 - A15 ou B10 - B11 - B12 - B13 - B14 - B15
       DO 6 TIMES.
 
+        CLEAR cell->cell_value. "limpa a celula
+        CLEAR: ls_timesheet-horas, ls_timesheet-pep, ls_timesheet-ausencia.
+
         "le a celula de acordo com a coordenada
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10
+        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
 
         "verifica se o colaborador trabalhou em algum projeto
         IF cell->cell_value NE 'Selecione'.
@@ -214,10 +217,10 @@ FORM display_table.
           CONDENSE lv_str_coord NO-GAPS.
 
           "le a celula de acordo com a coordenada
-          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10...
+          CLEAR ls_timesheet-pep.
 
           IF cell->cell_value NE 'Selecione'.
-            CLEAR ls_timesheet-pep.
             ls_timesheet-ausencia = cell->cell_value.
           ENDIF.
         ENDIF.
@@ -226,13 +229,13 @@ FORM display_table.
         IF ls_timesheet-pep IS NOT INITIAL OR ls_timesheet-ausencia IS NOT INITIAL.
 
           "itera pelo calendário
-          DO 30 TIMES.
+          DO 31 TIMES.
 
             "verifica quantas horas foram trabalhadas
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX index_hour. "E10-AI10"..."E11-AI11..E12-AI12"..."E13-AI13..E14-AI14"..."E15-AI15..
 
             "se houver hora trabalhada no dia.
-            IF cell->cell_value NE '0' AND cell->cell_value IS NOT INITIAL.
+            IF cell->cell_value NE '0'.
               ls_timesheet-horas = cell->cell_value.
 
               "pega o dia relacionado a hora de trabalho.
@@ -240,7 +243,6 @@ FORM display_table.
 
               ls_timesheet-dia = cell->cell_value.
               APPEND ls_timesheet TO it_timesheet. "insere a linha na tabela interna
-
             ENDIF.
 
             ADD 1 TO index_hour. "proxima hora
@@ -249,7 +251,7 @@ FORM display_table.
           ENDDO.
 
           "redefine o index de hora e dia
-          index_hour = 139. "E10
+          index_hour = 143. "E10
           index_day = 11.   "E11
 
         ENDIF.
@@ -264,23 +266,23 @@ FORM display_table.
         "redefine index de horarios conforme coordenadas
         CASE lv_str_coord.
           WHEN 'A10'.
-            index_hour = 139. "E10
+            index_hour = 143. "E10
           WHEN 'A11'.
-            index_hour = 171. "E11
+            index_hour = 176. "E11
           WHEN 'A12'.
-            index_hour = 203. "E12
+            index_hour = 209. "E12
           WHEN 'A13'.
-            index_hour = 235. "E13
+            index_hour = 242. "E13
           WHEN 'A14'.
-            index_hour = 267. "E14
+            index_hour = 275. "E14
           WHEN 'A15'.
-            index_hour = 299. "E15
+            index_hour = 308. "E15
         ENDCASE.
 
       ENDDO.
 
       "redefine o index de hora e dia
-      index_hour = 139.
+      index_hour = 143.
       index_day = 11.
 
       CLEAR ls_timesheet.
