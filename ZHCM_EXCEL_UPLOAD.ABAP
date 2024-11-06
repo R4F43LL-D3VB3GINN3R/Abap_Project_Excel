@@ -19,6 +19,7 @@ TYPES: BEGIN OF ty_timesheet,
          cntr_cust TYPE string,
          dia       TYPE string,
          pep       TYPE string,
+         ausencia  TYPE string,
          horas     TYPE string,
        END OF ty_timesheet.
 
@@ -204,7 +205,7 @@ FORM display_table.
         "verifica se o colaborador trabalhou em algum projeto
         IF cell->cell_value NE 'Selecione'.
           ls_timesheet-pep = cell->cell_value.
-        "se nao trabalhou, procuramos algum motivo de ausencia
+          "se nao trabalhou, procuramos algum motivo de ausencia
         ELSE.
           lv_coord = 'B'.
           CLEAR lv_str_coord.
@@ -216,12 +217,13 @@ FORM display_table.
           READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10
 
           IF cell->cell_value NE 'Selecione'.
-            ls_timesheet-pep = cell->cell_value.
+            CLEAR ls_timesheet-pep.
+            ls_timesheet-ausencia = cell->cell_value.
           ENDIF.
         ENDIF.
 
         "se houve algum projeto ou motivo de ausencia
-        IF ls_timesheet-PEP is not initial.
+        IF ls_timesheet-pep IS NOT INITIAL OR ls_timesheet-ausencia IS NOT INITIAL.
 
           "itera pelo calendário
           DO 30 TIMES.
@@ -277,28 +279,28 @@ FORM display_table.
 
       ENDDO.
 
-    "redefine o index de hora e dia
-    index_hour = 139.
-    index_day = 11.
+      "redefine o index de hora e dia
+      index_hour = 139.
+      index_day = 11.
 
-    CLEAR ls_timesheet.
+      CLEAR ls_timesheet.
 
-    "----------------------------------------------------------------------
+      "----------------------------------------------------------------------
 
-    flag_next_sheet = abap_true.         "pode passar para a proxima sheet
-    lv_index = 2.                        "reinicia o index
-    CLEAR: lv_str_coord.                 "limpa a coordenada
+      flag_next_sheet = abap_true.         "pode passar para a proxima sheet
+      lv_index = 2.                        "reinicia o index
+      CLEAR: lv_str_coord.                 "limpa a coordenada
+
+    ENDWHILE.
+
+    "passa para a próxima sheet
+    ADD 1 TO i.
+    flag_next_sheet = abap_false.
+
+    lv_coord_num = 10. "redefine a linha da coordenada
 
   ENDWHILE.
 
-  "passa para a próxima sheet
-  ADD 1 TO i.
-  flag_next_sheet = abap_false.
-
-  lv_coord_num = 10. "redefine a linha da coordenada
-
-ENDWHILE.
-
-cl_demo_output=>display( it_timesheet ). "display da tabela interna
+  cl_demo_output=>display( it_timesheet ). "display da tabela interna
 
 ENDFORM.
