@@ -150,7 +150,7 @@ FORM get_data.
     "tratamos cada sheet individualmente e só passamos para a próxima quando a flag for ativa
     WHILE flag_next_sheet EQ abap_false.
 
-      clear ls_timesheet.
+      CLEAR ls_timesheet.
 
       "-----------------------------------------------------
       "           cabeçalho de colaboradores
