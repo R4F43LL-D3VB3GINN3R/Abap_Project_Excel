@@ -8,12 +8,14 @@ TABLES: pernr,  "Dados Mestres RH
         pa0001, "Numero Pessoal,
         pa0002, "Dados Pessoais
         t554s,  "Tipos de Presença e Ausência
-        t554t.  "Textos de Ausência e Presença
+        t554t,  "Textos de Ausência e Presença
+        t526.   "Tabela de Encarregados
 
 "----------------------------------------------
 
 INFOTYPES: 0001, "Atribuição Organizacional
-           0002. "Dados Pessoais
+           0002, "Dados Pessoais
+           0003.
 
 "----------------------------------------------
 
@@ -28,12 +30,12 @@ TYPES: BEGIN OF wa_col,
        END OF wa_col .
 
 "tabela interna + estrutura
-DATA: it_colaboradores TYPE table of wa_col,
+DATA: it_colaboradores TYPE TABLE OF wa_col,
       ls_colaborador   TYPE wa_col.
 
 "tabela de colaboradores sem range de datas :: classe
-data: it_colaboradores2 type zcol_tt,
-      ls_colaboradores2 type zcol_st.
+DATA: it_colaboradores2 TYPE zcol_tt,
+      ls_colaboradores2 TYPE zcol_st.
 
 "----------------------------------------------
 
@@ -54,26 +56,79 @@ DATA: lo_events TYPE REF TO cl_salv_events_table.
 
 "----------------------------------------------
 
-"outros
+"data enviada
 DATA: lv_date TYPE sy-datum.
+
+"----------------------------------------------
+
+"lista de meses
+DATA: it_list_months TYPE vrm_values,
+      ls_list_months LIKE LINE OF it_list_months.
+
+"tabelas e estruturas de dropdown
+TYPES: BEGIN OF wa_months,
+         month_name TYPE string,
+         month_num  TYPE string,
+       END OF wa_months.
+
+DATA: it_months TYPE TABLE OF wa_months,
+      ls_months TYPE wa_months.
+
+"----------------------------------------------
+
+"estrutura para resultado de operacoes
+data: e_result type zrla_result.
+
+"----------------------------------------------
+
+"types de encarregados
+types: begin of wa_mangr,
+  sachx type t526-sachx,
+  sachn type t526-sachn,
+end of wa_mangr.
+
+"tabela de encarregados.
+data: it_managers type table of t526,
+      ls_managers type t526.
+
+"dropdown de encarregados
+DATA: it_list_mngr TYPE vrm_values,
+      ls_list_mngr LIKE LINE OF it_list_months.
 
 *&---------------------------------------------------------------------*
 *&  Include           ZROT
 *&---------------------------------------------------------------------*
 
+INITIALIZATION.
+
+  PERFORM fill_dropdown_months.   "dropdown de meses
+  PERFORM get_managers.           "consulta por encarregador de colaboradores
+  PERFORM fill_dropdown_managers. "dropdown de encarregados.
+
+  "--------------------------------------------------------------
+  "bloco anexo de tela de selecao pnp
+
+  SELECTION-SCREEN: BEGIN OF BLOCK a1 WITH FRAME TITLE TEXT-001.
+  SELECTION-SCREEN: SKIP 1.
+  PARAMETERS: p_month TYPE char12 AS LISTBOX VISIBLE LENGTH 12,
+              p_year  TYPE char4  DEFAULT 'YYYY',
+              p_mangr TYPE char20 AS LISTBOX VISIBLE LENGTH 20.
+  SELECTION-SCREEN: SKIP 1.
+  SELECTION-SCREEN: END OF BLOCK a1.
+
+  "--------------------------------------------------------------
+
 START-OF-SELECTION.
 
+  "verifica se existe um opjeto da classe excel
   IF ol_excel IS INITIAL.
     CREATE OBJECT ol_excel.
   ENDIF.
 
-
-  "a cada iteracao deste ciclo ele busca todas as informacoes de um colaborador
-
-GET pernr.
+GET pernr. "a cada iteracao deste ciclo ele busca todas as informacoes de um colaborador
 
   "itera sobre todas as informacoes deste colaborador
-  LOOP AT p0001 INTO DATA(ls_p0001).
+  LOOP AT p0001 INTO DATA(ls_p0001) WHERE sachz EQ p_mangr AND endda GT lv_date.
     "passa todas as informacoes do mesmo funcionario para a tabela interna
     MOVE-CORRESPONDING ls_p0001 TO ls_colaborador.
     APPEND ls_colaborador TO it_colaboradores.
@@ -85,14 +140,132 @@ END-OF-SELECTION.
   "---------------------------------------------------
   "---------------------------------------------------
 
-  PERFORM order_data.    "trata os dados coletados
-  PERFORM verify_date.   "verifica se o radiobutton foi ativado
-  PERFORM get_employees. "envia os dados dos colaboradores
-  PERFORM display_alv.   "apresenta o alv
+  PERFORM verify_entries.     "tratamento de campos
+
+  "verifica erros nos dados de inicializacao
+  IF e_result-rc EQ 1.
+    MESSAGE e_result-message TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+  PERFORM format_date.        "tratamento da data.
+  PERFORM order_data.         "trata os dados coletados do colaborador
+  PERFORM get_employees.      "envia os dados dos colaboradores
+  PERFORM display_alv.        "apresenta o alv
 
   "---------------------------------------------------
   "---------------------------------------------------
   "---------------------------------------------------
+
+FORM fill_dropdown_months.
+
+  CLEAR: it_months, it_list_months.
+
+  "preenche a tabela de meses
+  it_months = VALUE #( ( month_name = 'Janeiro'   month_num = '01' )
+                       ( month_name = 'Fevereiro' month_num = '02' )
+                       ( month_name = 'Março'     month_num = '03' )
+                       ( month_name = 'Abril'     month_num = '04' )
+                       ( month_name = 'Maio'      month_num = '05' )
+                       ( month_name = 'Junho'     month_num = '06' )
+                       ( month_name = 'Julho'     month_num = '07' )
+                       ( month_name = 'Agosto'    month_num = '08' )
+                       ( month_name = 'Setembro'  month_num = '09' )
+                       ( month_name = 'Outubro'   month_num = '10' )
+                       ( month_name = 'Novembro'  month_num = '11' )
+                       ( month_name = 'Dezembro'  month_num = '12' ) ).
+
+  "preenche a dropdown de meses
+  LOOP AT it_months INTO ls_months.
+    CLEAR ls_list_months.
+    ls_list_months-key  = ls_months-month_num.
+    ls_list_months-text = ls_months-month_name.
+    APPEND ls_list_months TO it_list_months.
+    CLEAR ls_months.
+  ENDLOOP.
+
+  "chama a funcao que preenche a dropdown
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 'P_MONTH'
+      values = it_list_months.
+
+ENDFORM.
+
+FORM get_managers.
+
+  CLEAR it_managers.
+
+  SELECT sachx
+         sachn
+    FROM t526
+    INTO CORRESPONDING FIELDS OF TABLE it_managers
+    WHERE werks EQ 'S718'.
+
+  IF it_managers IS INITIAL.
+    e_result-rc = 1.
+    e_result-message = | Não foi possível achar Encarregados no sistema |.
+  ENDIF.
+
+ENDFORM.
+
+FORM fill_dropdown_managers.
+
+  CLEAR it_list_mngr.
+
+  "passa os encarregados para a tabela de dropdown
+  LOOP AT it_managers INTO ls_managers.
+    ls_list_mngr-key = ls_managers-sachx.
+    ls_list_mngr-text = ls_managers-sachn.
+    CLEAR ls_managers.
+    APPEND ls_list_mngr TO it_list_mngr.
+  ENDLOOP.
+
+  "chama a funcao que preenche a dropdown
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 'P_MANGR'
+      values = it_list_mngr.
+
+ENDFORM.
+
+FORM verify_entries.
+
+  "verificacao do mes
+  IF p_month IS INITIAL.
+    e_result-rc = 1.
+    e_result-message = | Preencha o campo mês para gerar a Timesheet |.
+  ENDIF.
+
+  "verificao do ano
+  IF p_year EQ 'YYYY'.
+    e_result-rc = 1.
+    e_result-message = | Preencha o campo ano devidamente com uma data válida |.
+  ELSEIF p_year CA sy-abcde.
+    e_result-rc = 1.
+    e_result-message = | Preencha o ano com valores válidos |.
+  ENDIF.
+
+  "verifica o encarregado
+  if p_mangr is initial.
+    e_result-rc = 1.
+    e_result-message = | Escolha o Encarregado da Timesheet |.
+  endif.
+
+ENDFORM.
+
+FORM format_date.
+
+  CLEAR lv_date. "limpa a data
+
+  CONCATENATE p_year p_month '01' INTO lv_date. "ano + mes + dia 01
+
+  "verifica se a data existe e envia
+  IF lv_date IS NOT INITIAL.
+    ol_excel->get_date( date = lv_date ). "invoca o metodo para enviar a data
+  ENDIF.
+
+ENDFORM.
 
 FORM order_data.
 
@@ -108,38 +281,10 @@ FORM order_data.
 * "passa os dados das linhas com as ultimas datas
   LOOP AT it_colaboradores INTO ls_colaborador.
 
-    "pega a primeira linha
-    READ TABLE it_colaboradores INTO DATA(ls_colab2) INDEX index.
-
-    ADD 1 TO index. "incrementa o index
-
-    "pega a segunda linha
-    READ TABLE it_colaboradores INTO DATA(ls_colab3) INDEX index.
-
-    "verifica entre as duas linhas se houve uma mudanca de colaborador
-    "como a tabela esta ordenada em ascendente o ultimo registro do colaborador sempre é o que queremos
-    "ou seja...a ultima data em que mudou o centro de custo
-    IF ls_colab2-pernr NE ls_colab3-pernr.
-      MOVE-CORRESPONDING ls_colab2 TO ls_colaboradores2.
-      APPEND ls_colaboradores2 TO it_colaboradores2.
-    ENDIF.
+    MOVE-CORRESPONDING ls_colaborador TO ls_colaboradores2.
+    APPEND ls_colaboradores2 TO it_colaboradores2.
 
   ENDLOOP.
-
-  "-------------------------------------------------------
-
-ENDFORM.
-
-FORM verify_date.
-
-  "verifica se o radiobutton foi acionado.
-  IF pnptimr2 EQ 'X'.
-    "invoca o metodo para enviar a data
-    ol_excel->get_date( date = lv_date ).
-  else.
-    "invoca o metodo para enviar a data
-    ol_excel->get_date( date = sy-datum ).
-  ENDIF.
 
 ENDFORM.
 
@@ -247,3 +392,32 @@ FORM build_alv_columns.
 
 ENDFORM.
 
+*&---------------------------------------------------------------------*
+*&  Include           ZALV
+*&---------------------------------------------------------------------*
+
+CLASS zcl_event_handler DEFINITION.
+
+  PUBLIC SECTION.
+
+    CLASS-METHODS:
+      "método para implementar botoes na toolbar do alv
+      added_function FOR EVENT added_function OF cl_salv_events_table
+        IMPORTING
+          e_salv_function.
+
+ENDCLASS.
+
+CLASS zcl_event_handler IMPLEMENTATION.
+
+  METHOD added_function.
+
+    CASE sy-ucomm.
+      WHEN 'EXPORT'.
+        "download do arquivo excel
+        ol_excel->download_xls( ).
+    ENDCASE.
+
+  ENDMETHOD.
+
+ENDCLASS.
