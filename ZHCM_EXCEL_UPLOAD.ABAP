@@ -1,93 +1,4 @@
 *&---------------------------------------------------------------------*
-*&  Include           Z_EXCEL_TOP
-*&---------------------------------------------------------------------*
-
-"-----------------------------------------------------------------------------
-
-DATA: v_path      TYPE string,        "caminho do arquivo
-      lt_bin_data TYPE TABLE OF x255, "tabela binária para dados do arquivo
-      lv_xstr     TYPE xstring.       "variável para armazenar o conteúdo em XSTRING
-
-"-----------------------------------------------------------------------------
-
-"tabela interna de exibicao de dados da timesheet
-TYPES: BEGIN OF ty_timesheet,
-         num       TYPE string,
-         nome      TYPE string,
-         equipa    TYPE string,
-         cntr_cust TYPE string,
-         dia       TYPE string,
-         pep       TYPE string,
-         ausencia  TYPE string,
-         horas     TYPE string,
-       END OF ty_timesheet.
-
-DATA: it_timesheet TYPE TABLE OF ty_timesheet,
-      ls_timesheet TYPE ty_timesheet.
-
-"-----------------------------------------------------------------------------
-
-"index da sheet
-DATA: lv_index TYPE i.
-lv_index = 2.
-
-"flag da sheet
-DATA: flag_next_sheet TYPE flag.
-flag_next_sheet = abap_false.
-
-"index do dia trabalhado
-DATA: index_day TYPE i.
-index_day = 11.
-
-"index da hora trabalhada no dia
-DATA: index_hour TYPE i.
-index_hour = 143.
-
-"coordenada da celula
-DATA: lv_coord     TYPE string,
-      lv_coord_num TYPE i,
-      lv_str_coord TYPE string.
-lv_coord = 'A'.
-lv_coord_num = 10.
-
-"-----------------------------------------------------------------------------
-
-"instancias alv
-DATA: lo_alv           TYPE REF TO cl_salv_table,
-      lo_alv_functions TYPE REF TO cl_salv_functions,
-      lo_alv_columns   TYPE REF TO cl_salv_columns,
-      lo_alv_column    TYPE REF TO cl_salv_column,
-      lo_alv_display   TYPE REF TO cl_salv_display_settings,
-      o_functions      type ref to cl_salv_functions_list.
-
-"classe de eventos
-DATA: lo_events TYPE REF TO cl_salv_events_table.
-
-"-----------------------------------------------------------------------------
-
-"ecra de selecao
-SELECTION-SCREEN: SKIP 1.
-SELECTION-SCREEN: BEGIN OF BLOCK a1 WITH FRAME TITLE TEXT-001.
-PARAMETERS: p_path TYPE ibipparms-path.
-SELECTION-SCREEN: END OF BLOCK a1.
-SELECTION-SCREEN: SKIP 1.
-
-"-----------------------------------------------------------------------------
-
-AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_path. "insere o ícone de procura
-
-    "chama a função para abrir a caixa de seleção do arquivo.
-    CALL FUNCTION 'F4_FILENAME'
-      EXPORTING
-        program_name  = syst-cprog
-        dynpro_number = syst-dynnr
-        field_name    = 'P_PATH'
-      IMPORTING
-        file_name     = p_path.
-
-  "-----------------------------------------------------------------------------
-
-*&---------------------------------------------------------------------*
 *&  Include           Z_EXCEL_ROT
 *&---------------------------------------------------------------------*
 
@@ -114,30 +25,30 @@ FORM get_file.
     "carrega o arquivo em uma tabela binária
     cl_gui_frontend_services=>gui_upload(
       EXPORTING
-        filename             = v_path         " Nome do arquivo
-        filetype             = 'BIN'          " Tipo de arquivo como binário
+        filename                = v_path         " Nome do arquivo
+        filetype                = 'BIN'          " Tipo de arquivo como binário
       CHANGING
-        data_tab             = lt_bin_data    " Tabela binária para dados
+        data_tab                = lt_bin_data    " Tabela binária para dados
       EXCEPTIONS
-        file_open_error      = 1
-        file_read_error      = 2
-        no_batch             = 3
+        file_open_error         = 1
+        file_read_error         = 2
+        no_batch                = 3
         gui_refuse_filetransfer = 4
-        invalid_type         = 5
-        no_authority         = 6
-        unknown_error        = 7
-        bad_data_format      = 8
-        header_not_allowed   = 9
-        separator_not_allowed = 10
-        header_too_long      = 11
-        unknown_dp_error     = 12
-        access_denied        = 13
-        dp_out_of_memory     = 14
-        disk_full            = 15
-        dp_timeout           = 16
-        not_supported_by_gui = 17
-        error_no_gui         = 18
-        OTHERS               = 19
+        invalid_type            = 5
+        no_authority            = 6
+        unknown_error           = 7
+        bad_data_format         = 8
+        header_not_allowed      = 9
+        separator_not_allowed   = 10
+        header_too_long         = 11
+        unknown_dp_error        = 12
+        access_denied           = 13
+        dp_out_of_memory        = 14
+        disk_full               = 15
+        dp_timeout              = 16
+        not_supported_by_gui    = 17
+        error_no_gui            = 18
+        OTHERS                  = 19
       ).
 
     IF sy-subrc <> 0.
@@ -240,6 +151,12 @@ FORM get_data.
         "le a celula de acordo com a coordenada
         READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
 
+        "tratar nesta parte
+
+        "--------------------------------------------------------------------------------------------------------
+        "--------------------------------------------------------------------------------------------------------
+        "--------------------------------------------------------------------------------------------------------
+
         "verifica se o colaborador trabalhou em algum projeto
         IF cell->cell_value NE 'Selecione'.
           ls_timesheet-pep = cell->cell_value.
@@ -259,6 +176,10 @@ FORM get_data.
             ls_timesheet-ausencia = cell->cell_value.
           ENDIF.
         ENDIF.
+
+        "--------------------------------------------------------------------------------------------------------
+        "--------------------------------------------------------------------------------------------------------
+        "--------------------------------------------------------------------------------------------------------
 
         "se houve algum projeto ou motivo de ausencia
         IF ls_timesheet-pep IS NOT INITIAL OR ls_timesheet-ausencia IS NOT INITIAL.
