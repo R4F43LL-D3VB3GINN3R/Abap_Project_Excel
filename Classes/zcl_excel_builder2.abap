@@ -31,7 +31,7 @@
     "formula para dias trabalhados
     DATA: form_dia_trab TYPE string.
 
-    "valor do horario
+    "valor do horario dosq tempos gastos em projetos
     lv_stringhour = '0,0'.
 
     "formula para somar horas planeadas e trabalhadas
