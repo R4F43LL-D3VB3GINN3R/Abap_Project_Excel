@@ -96,6 +96,7 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: lt_bin_data TYPE TABLE OF x255,
           lv_xstr     TYPE xstring. "variável para armazenar o conteúdo em XSTRING
 
+    "dados geraia da timesheet em excel file
     TYPES: BEGIN OF ty_timesheet,
              num       TYPE string,
              nome      TYPE string,
@@ -110,6 +111,7 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_timesheet TYPE TABLE OF ty_timesheet,
           ls_timesheet TYPE ty_timesheet.
 
+    "dados dos colaboradores em excel file
     TYPES: BEGIN OF ty_employee,
              num       TYPE string,
              nome      TYPE string,
@@ -120,6 +122,7 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_employee TYPE TABLE OF ty_employee,
           ls_employee TYPE ty_employee.
 
+    "dados dos peps em excel file
     TYPES: BEGIN OF ty_peps,
              num  TYPE string,
              dia  TYPE string,
@@ -130,6 +133,7 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_peps TYPE TABLE OF ty_peps,
           ls_peps TYPE ty_peps.
 
+    "dados de ausencia e presenca em excel file
     TYPES: BEGIN OF ty_auspres,
              num     TYPE string,
              dia     TYPE string,
@@ -1845,10 +1849,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     ENDIF.
 
-    me->get_employee_datafile( ).
-    me->get_month_datafile( ).
-    me->get_peps_datafile( ).
-    me->get_auspres_datafile( ).
+    "----------------------------------------------------------------------------------------
+    me->get_employee_datafile( ). "recebe os colaboradores do arquivo
+    me->get_month_datafile( ).    "recebe o mês do arquivo
+    me->get_peps_datafile( ).     "recebe os projetos dos colaboradores
+    me->get_auspres_datafile( ).  "recebe os motivos de ausencia e presenca dos colaboradores
+    "----------------------------------------------------------------------------------------
 
   ENDMETHOD.
 ENDCLASS.
