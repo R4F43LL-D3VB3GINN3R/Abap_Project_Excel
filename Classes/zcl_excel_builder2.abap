@@ -120,6 +120,16 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_employee TYPE TABLE OF ty_employee,
           ls_employee TYPE ty_employee.
 
+    TYPES: BEGIN OF ty_peps,
+             num  TYPE string,
+             dia  TYPE string,
+             pep  TYPE string,
+             hora TYPE string,
+           END OF ty_peps.
+
+    DATA: it_peps TYPE TABLE OF ty_peps,
+          ls_peps TYPE ty_peps.
+
     METHODS get_data
       IMPORTING
         !colaboradores TYPE zcol_tt.
@@ -166,12 +176,13 @@ CLASS zcl_excel_builder2 DEFINITION
         end_date   TYPE sy-datum.
     METHODS get_employee_datafile.
     METHODS get_month_datafile.
-    methods get_work_schedule_by_file.
+    METHODS get_work_schedule_by_file.
+    METHODS get_peps_datafile.
 ENDCLASS.
 
 
 
-CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
+CLASS zcl_excel_builder2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -1017,6 +1028,146 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_PEPS_DATAFILE
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_peps_datafile.
+
+    IF me->lv_xstr IS INITIAL.
+      RETURN.
+    ELSEIF me->gv_datemonth IS INITIAL.
+      RETURN.
+    ELSEIF me->it_employee IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    DATA: lv_index TYPE i.
+    lv_index = 2.
+
+    "coordenada da celula
+    DATA: lv_coord     TYPE string,
+          lv_coord_num TYPE i,
+          lv_str_coord TYPE string.
+
+    lv_coord = 'A'.
+    lv_coord_num = 10.
+
+    DATA: lv_hour_index TYPE i.
+    lv_hour_index = 144.
+
+    "flag da sheet
+    DATA: flag_next_sheet TYPE flag.
+    flag_next_sheet = abap_false.
+
+    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+
+    DATA(i) = 2.
+
+    "itera por todas as sheets do excel, seja ela quantas houverem
+    WHILE i <= lo_excel->get_worksheets_size( ).
+
+      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+
+      CLEAR me->ls_peps.
+
+      "define a coordenada da celula ao inicio da sheet
+      lv_str_coord = lv_coord_num.
+      CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10
+      CONDENSE lv_str_coord NO-GAPS.
+
+      "pega primeiramente o numero do colaborador
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
+
+      "numero do colaborador
+      me->ls_peps-num = cell->cell_value.
+
+      "itera sobre os seis projetos
+      DO 6 TIMES.
+
+        "procura se há peps ativas
+        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
+
+        "se houver pep disponivel
+        IF cell->cell_value NE 'Selecione'.
+          ls_peps-pep = cell->cell_value. "recebe o nome do pep
+
+          "itera sobre os 31 dias do mes -- valor fixo
+          DO 31 TIMES.
+
+            "verifica as horas trabalhadas
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
+
+            "se houver hora trabalhada...
+            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+
+              me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
+              me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
+              APPEND ls_peps TO it_peps.           "insere a tabela de peps
+              CLEAR: ls_peps-dia, ls_peps-hora.
+              CLEAR: cell->cell_value.
+            ENDIF.
+
+            ADD 1 TO lv_hour_index. "incrementa para a proxima hora
+            ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+
+          ENDDO.
+
+          me->get_month_datafile( ). "reseta data do mes
+
+        ENDIF.
+
+        "redefine a coordenada para o proximo projeto
+        lv_coord = 'A'.
+        ADD 1 TO lv_coord_num.
+        lv_str_coord = lv_coord_num.
+        CONCATENATE lv_coord lv_str_coord INTO lv_str_coord.
+        CONDENSE lv_str_coord NO-GAPS.
+
+        "redefine o index de horarios conforme coordenada
+        CASE lv_str_coord.
+          WHEN 'A10'.
+            lv_hour_index = 144.
+          WHEN 'A11'.
+            lv_hour_index = 177.
+          WHEN 'A12'.
+            lv_hour_index = 210.
+          WHEN 'A13'.
+            lv_hour_index = 243.
+          WHEN 'A14'.
+            lv_hour_index = 276.
+          WHEN 'A15'.
+            lv_hour_index = 309.
+        ENDCASE.
+
+        CLEAR: ls_peps-dia, ls_peps-hora, ls_peps-pep.
+
+      ENDDO.
+
+      "-------------------------------------------
+      "    redefine dados para proxima sheet.
+      "-------------------------------------------
+
+      lv_hour_index = 144. "index de horas trabalhadas
+
+      me->get_month_datafile( ). "reseta data do mes
+
+      "passa para a próxima sheet
+      ADD 1 TO i.
+      lv_index = 2.
+
+      CLEAR: lv_str_coord. "limpa a coordenada
+      lv_coord_num = 10. "redefine a linha da coordenada
+
+      CLEAR ls_peps. "limpa a estrutura para a proxima sheet
+
+    ENDWHILE.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->GET_PROJECTS
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
@@ -1085,9 +1236,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WORK_SCHEDULE_BY_FILE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  method get_work_schedule_by_file.
+  METHOD get_work_schedule_by_file.
 
-  endmethod.
+
+
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -1543,6 +1696,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     me->get_employee_datafile( ).
     me->get_month_datafile( ).
+    me->get_peps_datafile( ).
 
   ENDMETHOD.
 ENDCLASS.
