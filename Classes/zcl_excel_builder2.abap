@@ -208,6 +208,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD append_extension.
 
+    "-------------------------------------------------------
+    "info: concatena a extensao do arquivo ao path principal
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "-------------------------------------------------------
+
     CONCATENATE old_extension 'xlsx' INTO new_extension SEPARATED BY '.'.
 
   ENDMETHOD.
@@ -220,6 +228,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [<---] COLUMN_STRING                  TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD convert_excel_column.
+
+    "----------------------------------------------------------------------------------------------
+    "info: através de um numero, retorna o valor em string da referida coluna em excel
+    "este metodo é usado para complementar a formula da soma das horas no metodo generate calendar
+    "assim a formula é atualizada a cada iteracao
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     "variavel recebe o parametro de entrada
     DATA: lv_column_int TYPE i.
@@ -248,6 +266,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD convert_xstring.
+
+    "----------------------------------------------------------------------------------------------
+    "info: converte a tabela de colaboradores em xstring
+    "a tabela posteriormente é usada para preencher o excel file
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     DATA: lx_error      TYPE REF TO cx_root,  "define uma referência para exceções
           lv_error_text TYPE string.          "define uma variável para o texto do erro
@@ -287,6 +314,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] I_TABLE_NAME                   TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD display_fast_excel.
+
+    "----------------------------------------------------------------------------------------------
+    "info: converte uma tabela da base de dados em arquivo excel
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     "-------------------------------------------------------------------------------
     "recebe uma tabela generica
@@ -462,6 +497,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD download_xls.
 
+    "----------------------------------------------------------------------------------------------
+    "info: realiza download do arquivo excel file
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     "tratamento de nome e extensão do arquivo
     DATA full_path TYPE string.
     DATA namefile TYPE string.
@@ -540,6 +583,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD generate_calendar.
+
+    "----------------------------------------------------------------------------------------------
+    "info: gera um calendario para cada colaborador de acordo com o mes requerido
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     "metodo para capturar a data enviada pelo programa
     me->get_date( date = gv_datemonth ).
@@ -786,6 +837,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_auspres.
 
+    "----------------------------------------------------------------------------------------------
+    "info: recebe ausencias e presencas da base de dados
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     DATA: begin_month TYPE begda,
           end_month   TYPE endda.
 
@@ -840,6 +899,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_auspres_datafile.
+
+    "----------------------------------------------------------------------------------------------
+    "info: recebe ausencias e presencas do arquivo excel
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     IF me->lv_xstr IS INITIAL.
       RETURN.
@@ -982,6 +1049,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_data.
 
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os dados dos colaboradores da base de dados
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     DATA stringline TYPE string.
 
     "mockdata
@@ -1024,6 +1099,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_date.
 
+    "----------------------------------------------------------------------------------------------
+    "info: atributo de classe recebe data atual do sistema
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     "se a data nao for enviada...
     "envia a data atual do sistema.
     IF date IS INITIAL.
@@ -1040,6 +1123,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_employee_datafile.
+
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os dados dos colaboradores do arquivo excel e guarda numa tabela interna
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     IF lv_xstr IS INITIAL.
       RETURN.
@@ -1112,6 +1203,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_file_directory.
 
+    "----------------------------------------------------------------------------------------------
+    "info: recebe o diretorio do arquivo
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     DATA: namefile  TYPE string, "nome do arquivo
           directory TYPE string, "diretorio
           fullpath  TYPE string. "caminho completo
@@ -1156,6 +1255,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_month_datafile.
 
+    "----------------------------------------------------------------------------------------------
+    "info: recebe o mes do arquivo excel referente a celula B6
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     IF lv_xstr IS INITIAL.
       RETURN.
     ENDIF.
@@ -1187,6 +1294,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_peps_datafile.
+
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os peps dos colaboradores no excel file
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     IF me->lv_xstr IS INITIAL.
       RETURN.
@@ -1328,6 +1443,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_projects.
 
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os projetos ativos da base de dados
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     DATA stringline TYPE string.
 
     SELECT proj~objnr, "Nº objeto
@@ -1361,6 +1484,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] PERNR                          TYPE        P_PERNR
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_work_schedule.
+
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os horarios de trabalho do colaborador enviados da base de dados
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     DATA: begda TYPE begda,
           endda TYPE endda.
@@ -1403,6 +1534,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD set_database.
+
+    "----------------------------------------------------------------------------------------------
+    "info: insere as informacoes gerais dos colaboradores na primeira sheet do excel file
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     DATA(o_xl_ws) = o_xl->get_active_worksheet( ).
     lo_worksheet = o_xl_ws.
@@ -1562,6 +1701,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD set_rangemonthdate.
 
+    "----------------------------------------------------------------------------------------------
+    "info: cria uma range de datas: começo e final de mes
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     "tratamento de data final do mes
     "-------------------------------------------
 
@@ -1594,6 +1741,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD set_sheets.
+
+    "----------------------------------------------------------------------------------------------
+    "info: insere paginacao no excel para cada colaborador
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     DATA: lv_title TYPE zexcel_sheet_title.
 
@@ -1746,6 +1901,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD set_style.
 
+    "----------------------------------------------------------------------------------------------
+    "info: criacao de estilos para celulas
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
     "cria objetos das bordas
     CREATE OBJECT o_border_dark.
     o_border_dark->border_color-rgb = zcl_excel_style_color=>c_black.
@@ -1794,6 +1957,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [--->] STR_PATH_FILE                  TYPE        STRING
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD upload_timesheet.
+
+    "----------------------------------------------------------------------------------------------
+    "info: carrega o arquivo excel para o programa
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     IF str_path_file IS INITIAL.
       MESSAGE | O Arquivo precisa de um caminho. | TYPE 'S' DISPLAY LIKE 'E'.
