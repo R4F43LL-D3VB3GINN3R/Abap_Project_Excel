@@ -96,16 +96,18 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: lt_bin_data TYPE TABLE OF x255,
           lv_xstr     TYPE xstring. "variável para armazenar o conteúdo em XSTRING
 
-    "dados geraia da timesheet em excel file
+    "dados gerais da timesheet em excel file
     TYPES: BEGIN OF ty_timesheet,
-             num       TYPE string,
-             nome      TYPE string,
-             equipa    TYPE string,
-             cntr_cust TYPE string,
-             dia       TYPE string,
-             pep       TYPE string,
-             ausencia  TYPE string,
-             horas     TYPE string,
+             num       TYPE pa0001-pernr,
+             nome      TYPE pa0002-cname,
+             equipa    TYPE pa0001-vdsk1,
+             cntr_cust TYPE pa0001-kostl,
+             dia       TYPE sy-datum,
+             pep       TYPE char100,
+             auspres   TYPE char100,
+             hora      TYPE times,
+             validacao type icon_d,
+             row       type string,
            END OF ty_timesheet.
 
     DATA: it_timesheet TYPE TABLE OF ty_timesheet,
@@ -128,6 +130,7 @@ CLASS zcl_excel_builder2 DEFINITION
              dia  TYPE string,
              pep  TYPE string,
              hora TYPE string,
+             row  type string,
            END OF ty_peps.
 
     DATA: it_peps TYPE TABLE OF ty_peps,
@@ -139,6 +142,7 @@ CLASS zcl_excel_builder2 DEFINITION
              dia     TYPE string,
              auspres TYPE string,
              hora    TYPE string,
+             row     type string,
            END OF ty_auspres.
 
     DATA: it_auspres TYPE TABLE OF ty_auspres,
@@ -190,9 +194,9 @@ CLASS zcl_excel_builder2 DEFINITION
         end_date   TYPE sy-datum.
     METHODS get_employee_datafile.
     METHODS get_month_datafile.
-    METHODS get_work_schedule_by_file.
     METHODS get_peps_datafile.
     METHODS get_auspres_datafile.
+    methods set_workschedule_datafile.
 ENDCLASS.
 
 
@@ -979,6 +983,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
               me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
+              me->ls_auspres-row  = lv_coord_num.     "recebe a linha do projeto
               APPEND ls_auspres TO it_auspres.           "insere a tabela de peps
               CLEAR: ls_auspres-dia, ls_auspres-hora.
               CLEAR: cell->cell_value.
@@ -1016,7 +1021,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             lv_hour_index = 309.
         ENDCASE.
 
-        CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-auspres.
+        CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-auspres, ls_auspres-row.
 
       ENDDO.
 
@@ -1374,6 +1379,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
               me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
+              me->ls_peps-row  = lv_coord_num.     "recebe a linha do projeto
               APPEND ls_peps TO it_peps.           "insere a tabela de peps
               CLEAR: ls_peps-dia, ls_peps-hora.
               CLEAR: cell->cell_value.
@@ -1411,7 +1417,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             lv_hour_index = 309.
         ENDCASE.
 
-        CLEAR: ls_peps-dia, ls_peps-hora, ls_peps-pep.
+        CLEAR: ls_peps-dia, ls_peps-hora, ls_peps-pep, ls_peps-row.
 
       ENDDO.
 
@@ -1514,17 +1520,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         read_cluster      = ''
       TABLES
         perws             = me->tb_psp.
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WORK_SCHEDULE_BY_FILE
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD get_work_schedule_by_file.
-
-
 
   ENDMETHOD.
 
@@ -1952,6 +1947,115 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_WORKSCHEDULE_DATAFILE
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method set_workschedule_datafile.
+
+    "----------------------------------------------------------------------------------------------
+    "info: insere todos os dados do excel numa tabela interna de saida
+    "esta tabela interna sera apresentada num report alv
+    "
+    "data de alteracao: 11.11.2024
+    "alteracao: implementacao de ausencias e presenças e documentacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
+    "verifica se há colaborador
+    if me->it_employee is initial.
+      message | Não há colaboradores disponíveis | type 'S' display like 'E'.
+    endif.
+
+    clear me->it_timesheet. "
+
+    "index de cada colaborador
+    data: lv_indexemployee type i.
+    lv_indexemployee = 1.
+
+    "flag para interromper o ciclo apos iterar por cada colaborador
+    data: lv_stopwhile type flag.
+    lv_stopwhile = abap_false.
+
+    "enquanto a flag estiver inativa
+    while lv_stopwhile eq abap_false.
+
+      "interrompe o ciclo depois de contar todos os colaboradores
+      if lv_indexemployee gt lines( me->it_employee ).
+        lv_stopwhile = abap_true.
+      endif.
+
+      "limpa todas as estruturas
+      clear me->ls_employee.
+      clear me->ls_peps.
+      clear me->ls_timesheet.
+
+      "le cada colaborador a partir do index
+      read table me->it_employee into me->ls_employee index lv_indexemployee.
+
+      "quantidade de dias maximos de um mes
+      do 31 times.
+
+          "itera primeiramente sobre os projetos do colaborador
+          loop at me->it_peps into me->ls_peps where dia = me->gv_datemonth and num = me->ls_employee-num.
+
+              move-corresponding me->ls_employee to me->ls_timesheet. "preenche a estrutura com os dados do colaborador
+              move-corresponding me->ls_peps to me->ls_timesheet.     "insere as informacoes do projeto na linha
+              clear: me->ls_timesheet-auspres.                        "limpeza de dados indesejáveis - importante
+              append me->ls_timesheet to me->it_timesheet.            "insere a linha na tabela de output
+
+              "limpa as linhas
+              clear me->ls_peps.
+              clear me->ls_timesheet.
+          endloop.
+
+          "depois de pegar os projetos, verifica-se se há motivos de ausência ou presenca
+          "aqui temos de verificar se há motivos de ausencias e presenças relacionados a peps ou nao
+          "é de suma importancia que estejam relacionados por datas e principalmente numero de linha do excel file
+          "porque uma hora extra pode estar relacionado a uma data e se nao a uma linha, pode relacionar uma hora extra a dois projetos.
+          loop at me->it_auspres into me->ls_auspres where dia = me->gv_datemonth and num = me->ls_employee-num.
+
+            clear me->ls_timesheet.
+
+            "cada linha de motivo de ausencia presenca é verifica dentro da tabela de saida recém preenchida
+            loop at me->it_timesheet into me->ls_timesheet where dia eq me->gv_datemonth.
+
+              "verifica se na mesma linha do excel e no mesmo dia existe tanto um projeto quanto um motivo de ausencia e presenca
+              if me->ls_auspres-row eq me->ls_timesheet-row and me->ls_auspres-dia eq me->ls_timesheet-dia.
+                move-corresponding me->ls_auspres  to me->ls_timesheet. "preenche o campo de ausencia e presenca
+                modify me->it_timesheet from me->ls_timesheet.          "altera diretamente a tabela interna
+                clear me->ls_auspres.
+                exit.                                                   "essencial estourar o ciclo após a insercao da linha para evitar iteracoes indesejadas
+
+              "nao havendo projetos vinculados a ausencias e presencas, inserimos um novo registo
+              else.
+                move-corresponding me->ls_employee to me->ls_timesheet. "preenche o campo de ausencia e presenca
+                move-corresponding me->ls_auspres  to me->ls_timesheet. "insere a ausencia e presenca na estrutura
+                clear: me->ls_timesheet-pep.                            "limpa o pep, caso haja
+                append me->ls_timesheet to me->it_timesheet.            "insere novo registro
+                clear me->ls_auspres.                                   "limpa a linha
+                exit.
+              endif.                                                    "essencial estourar o ciclo após a insercao da linha para evitar iteracoes indesejadas
+
+            endloop.
+
+          endloop.
+
+          add 1 to me->gv_datemonth. "cada iteracaoq do ciclo ''DO'', incrementamos para o proximo dia.
+
+      enddo.
+
+      add 1 to lv_indexemployee. "passa para o proximo colaborador
+      me->get_month_datafile( ). "reinicia a data do mês
+
+    endwhile.
+
+    lv_stopwhile = abap_false. "redefine a flag
+    lv_indexemployee = 1.      "redefine o index para o primeiro colaborador
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->UPLOAD_TIMESHEET
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] STR_PATH_FILE                  TYPE        STRING
@@ -2021,10 +2125,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDIF.
 
     "----------------------------------------------------------------------------------------
-    me->get_employee_datafile( ). "recebe os colaboradores do arquivo
-    me->get_month_datafile( ).    "recebe o mês do arquivo
-    me->get_peps_datafile( ).     "recebe os projetos dos colaboradores
-    me->get_auspres_datafile( ).  "recebe os motivos de ausencia e presenca dos colaboradores
+    me->get_employee_datafile( ).     "recebe os colaboradores do arquivo
+    me->get_month_datafile( ).        "recebe o mês do arquivo
+    me->get_peps_datafile( ).         "recebe os projetos dos colaboradores
+    me->get_auspres_datafile( ).      "recebe os motivos de ausencia e presenca dos colaboradores
+    me->set_workschedule_datafile( ). "recebe todos os dados dos colaboradores no excel
     "----------------------------------------------------------------------------------------
 
   ENDMETHOD.
