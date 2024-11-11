@@ -1976,6 +1976,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     data: lv_stopwhile type flag.
     lv_stopwhile = abap_false.
 
+    "---------------------------------------------------------------------------------------
+    "TRANSFERÊNCIA DE PROJETOS - AUSENCIAS E PRESENCAS
+    "---------------------------------------------------------------------------------------
+
     "enquanto a flag estiver inativa
     while lv_stopwhile eq abap_false.
 
@@ -1995,12 +1999,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "quantidade de dias maximos de um mes
       do 31 times.
 
-          "itera primeiramente sobre os projetos do colaborador
+          "itera sobre os projetos do colaborador
           loop at me->it_peps into me->ls_peps where dia = me->gv_datemonth and num = me->ls_employee-num.
 
               move-corresponding me->ls_employee to me->ls_timesheet. "preenche a estrutura com os dados do colaborador
               move-corresponding me->ls_peps to me->ls_timesheet.     "insere as informacoes do projeto na linha
               clear: me->ls_timesheet-auspres.                        "limpeza de dados indesejáveis - importante
+              me->ls_timesheet-validacao = icon_green_light.
               append me->ls_timesheet to me->it_timesheet.            "insere a linha na tabela de output
 
               "limpa as linhas
@@ -2008,37 +2013,20 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
               clear me->ls_timesheet.
           endloop.
 
-          "depois de pegar os projetos, verifica-se se há motivos de ausência ou presenca
-          "aqui temos de verificar se há motivos de ausencias e presenças relacionados a peps ou nao
-          "é de suma importancia que estejam relacionados por datas e principalmente numero de linha do excel file
-          "porque uma hora extra pode estar relacionado a uma data e se nao a uma linha, pode relacionar uma hora extra a dois projetos.
+          "itera sobre os motivos de ausencia e presenca do colaborador
           loop at me->it_auspres into me->ls_auspres where dia = me->gv_datemonth and num = me->ls_employee-num.
 
-            clear me->ls_timesheet.
+              move-corresponding me->ls_employee to me->ls_timesheet. "preenche o campo de ausencia e presenca
+              move-corresponding me->ls_auspres  to me->ls_timesheet. "insere a ausencia e presenca na estrutura
+              clear: me->ls_timesheet-pep.                            "limpa o pep, caso haja
+              me->ls_timesheet-validacao = icon_green_light.
+              append me->ls_timesheet to me->it_timesheet.            "insere novo registro
 
-            "cada linha de motivo de ausencia presenca é verifica dentro da tabela de saida recém preenchida
-            loop at me->it_timesheet into me->ls_timesheet where dia eq me->gv_datemonth.
+              "limpa as linhas
+              clear me->ls_auspres.
+              clear me->ls_timesheet.
 
-              "verifica se na mesma linha do excel e no mesmo dia existe tanto um projeto quanto um motivo de ausencia e presenca
-              if me->ls_auspres-row eq me->ls_timesheet-row and me->ls_auspres-dia eq me->ls_timesheet-dia.
-                move-corresponding me->ls_auspres  to me->ls_timesheet. "preenche o campo de ausencia e presenca
-                modify me->it_timesheet from me->ls_timesheet.          "altera diretamente a tabela interna
-                clear me->ls_auspres.
-                exit.                                                   "essencial estourar o ciclo após a insercao da linha para evitar iteracoes indesejadas
-
-              "nao havendo projetos vinculados a ausencias e presencas, inserimos um novo registo
-              else.
-                move-corresponding me->ls_employee to me->ls_timesheet. "preenche o campo de ausencia e presenca
-                move-corresponding me->ls_auspres  to me->ls_timesheet. "insere a ausencia e presenca na estrutura
-                clear: me->ls_timesheet-pep.                            "limpa o pep, caso haja
-                append me->ls_timesheet to me->it_timesheet.            "insere novo registro
-                clear me->ls_auspres.                                   "limpa a linha
-                exit.
-              endif.                                                    "essencial estourar o ciclo após a insercao da linha para evitar iteracoes indesejadas
-
-            endloop.
-
-          endloop.
+         endloop.
 
           add 1 to me->gv_datemonth. "cada iteracaoq do ciclo ''DO'', incrementamos para o proximo dia.
 
@@ -2051,6 +2039,76 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     lv_stopwhile = abap_false. "redefine a flag
     lv_indexemployee = 1.      "redefine o index para o primeiro colaborador
+
+    "depois de coletada toda verificacao, é preciso tratar das possibilidades de haverem peps e motivos de ausencia e presenca na mesma linha
+
+    "---------------------------------------------------------------------------------------
+    "VERIFICACAO DE AUSENCIAS E PRESENCAS LIGADAS A PROJETOS ATIVOS E POSSIBILIDADES DE HORAS EXTRAS
+    "---------------------------------------------------------------------------------------
+
+    data: row3 type me->ty_timesheet. "linha a ser inserida
+    data: it_timesheet2 type table of me->ty_timesheet. "tabela para receber dados tratados
+    it_timesheet2 = me->it_timesheet. "recebe o conteudo original
+
+    "enquanto a flag estiver inativa
+    while lv_stopwhile eq abap_false.
+
+      "interrompe o ciclo depois de contar todos os colaboradores
+      if lv_indexemployee gt lines( me->it_employee ).
+        lv_stopwhile = abap_true.
+      endif.
+
+      "limpa todas as estruturas
+      clear me->ls_employee.
+      clear me->ls_peps.
+      clear me->ls_timesheet.
+
+      "le cada colaborador a partir do index
+      read table me->it_employee into me->ls_employee index lv_indexemployee.
+
+        "itera sobre cada linha da timesheet
+        loop at me->it_timesheet into data(row1) where num eq ls_employee-num.
+
+          "cada linha é verificada aqui a procura de projetos existentes com ausencias e presencas
+          loop at me->it_timesheet into data(row2) where num eq ls_employee-num.
+
+            "cada linha da timesheet é comparada com as outras linhas
+            "e vemos se existem linhas com as mesmas caracteristicas contendo ausencias e presencas
+
+            if row1-row eq row2-row           "verifica coordenadas
+              and row1-pep is not initial     "verifica se há pep na linha inicial
+              and row2-auspres is not initial "verifica se há ausencias e presencas na linha de comparacao
+              and row2-dia eq row1-dia.       "verifica os dias
+
+              row3 = row1.                 "linha de apoio recebe os dados da linha original
+              row3-auspres = row2-auspres. "e recebe o motivo de ausencia e presenca
+
+              "remove a linha que tem apenas o pep sem a ausencia e a linha que tem a ausencia sem o pep
+              delete it_timesheet2 where auspres eq row2-auspres and row eq row1-row and dia eq row1-dia.
+              delete it_timesheet2 where pep eq row1-pep and row eq row1-row and dia eq row2-dia.
+
+              row3-validacao = icon_yellow_light.
+              append row3 to it_timesheet2. "insere a nova linha
+
+
+              clear: row3, row2, row1.
+              exit.
+            endif.
+
+          endloop.
+
+        endloop.
+
+      add 1 to lv_indexemployee. "passa para o proximo colaborador
+
+    endwhile.
+
+    lv_stopwhile = abap_false. "redefine a flag
+    lv_indexemployee = 1.      "redefine o index para o primeiro colaborador
+
+    "limpa a timesheet e recebe a tabela tratada.
+    refresh me->it_timesheet.
+    me->it_timesheet = it_timesheet2.
 
   endmethod.
 
