@@ -148,6 +148,9 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_auspres TYPE TABLE OF ty_auspres,
           ls_auspres TYPE ty_auspres.
 
+    DATA: tt_alv TYPE ztshralv_tt, "tabela para alv
+          ts_alv type ztshralv_st. "linha para alv
+
     METHODS get_data
       IMPORTING
         !colaboradores TYPE zcol_tt.
@@ -161,6 +164,10 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS upload_timesheet
       IMPORTING
         str_path_file TYPE string.
+    METHODS get_timesheet_datafile
+      EXPORTING
+        table_timesheet TYPE ztshralv_tt
+        result          TYPE zrla_result.
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -197,15 +204,11 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS get_peps_datafile.
     METHODS get_auspres_datafile.
     METHODS set_workschedule_datafile.
-    METHODS set_timesheet_datafile
-      EXPORTING
-        table_timesheet TYPE ztshralv_tt
-        result          TYPE zrla_result.
 ENDCLASS.
 
 
 
-CLASS zcl_excel_builder2 IMPLEMENTATION.
+CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -1489,6 +1492,48 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER2->GET_TIMESHEET_DATAFILE
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] TABLE_TIMESHEET                TYPE        ZTSHRALV_TT
+* | [<---] RESULT                         TYPE        ZRLA_RESULT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_timesheet_datafile.
+
+    "verifica se o atributo está preenchido
+    IF me->it_timesheet IS INITIAL.
+      result-rc = 1.
+      result-message = | Não foi possível receber os dados da Timesheet. |.
+      RETURN.
+    ENDIF.
+
+    "limpa possiveis dados
+    refresh table_timesheet.
+    refresh me->tt_alv.
+
+    DATA: ts TYPE ztshralv_st. "linha da timesheet.
+
+    "passa os dados do atributo para a tabela interna
+    LOOP AT me->it_timesheet INTO me->ls_timesheet.
+      ts-num       = me->ls_timesheet-num.
+      ts-nome      = me->ls_timesheet-nome.
+      ts-equipa    = me->ls_timesheet-equipa.
+      ts-cntr_cust = me->ls_timesheet-cntr_cust.
+      ts-dia       = me->ls_timesheet-dia.
+      ts-pep       = me->ls_timesheet-pep.
+      ts-auspres   = me->ls_timesheet-auspres.
+      ts-hora      = me->ls_timesheet-hora.
+      ts-validacao = me->ls_timesheet-validacao.
+      append ts to table_timesheet.
+      clear me->ls_timesheet.
+      clear ts.
+    ENDLOOP.
+
+    sort table_timesheet by dia ascending.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WORK_SCHEDULE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] PERNR                          TYPE        P_PERNR
@@ -1946,39 +1991,6 @@ CLASS zcl_excel_builder2 IMPLEMENTATION.
     tp_style_bold_center_guid2       = lo_style->get_guid( ). "nao esquecer
 
     "é possível montar vários estilos guid e usar de forma como convém
-
-  ENDMETHOD.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_TIMESHEET_DATAFILE
-* +-------------------------------------------------------------------------------------------------+
-* | [<---] TABLE_TIMESHEET                TYPE        ZTSHRALV_TT
-* | [<---] RESULT                         TYPE        ZRLA_RESULT
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD set_timesheet_datafile.
-
-    "verifica se o atributo está preenchido
-    IF me->it_timesheet IS INITIAL.
-      result-rc = 1.
-      result-message = | Não foi possível receber os dados da Timesheet. |.
-      RETURN.
-    ENDIF.
-
-    DATA: ts TYPE ztshralv_st. "linha da timesheet.
-
-    "passa os dados do atributo para a tabela interna
-    LOOP AT me->it_timesheet INTO me->ls_timesheet.
-      ts-num       = me->ls_timesheet-num.
-      ts-equipa    = me->ls_timesheet-equipa.
-      ts-cntr_cust = me->ls_timesheet-cntr_cust.
-      ts-dia       = me->ls_timesheet-dia.
-      ts-pep       = me->ls_timesheet-pep.
-      ts-auspres   = me->ls_timesheet-auspres.
-      ts-hora      = me->ls_timesheet-hora.
-      ts-validacao = me->ls_timesheet-validacao.
-      ts-row_coord = me->ls_timesheet-row.
-    ENDLOOP.
 
   ENDMETHOD.
 
