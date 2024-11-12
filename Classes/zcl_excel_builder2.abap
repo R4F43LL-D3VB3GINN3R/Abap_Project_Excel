@@ -204,7 +204,7 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS get_peps_datafile.
     METHODS get_auspres_datafile.
     METHODS set_workschedule_datafile.
-    METHODS get_wronglines.
+    METHODS get_wronglines_datafile.
 ENDCLASS.
 
 
@@ -1522,6 +1522,27 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ts-dia       = me->ls_timesheet-dia.
       ts-pep       = me->ls_timesheet-pep.
       ts-auspres   = me->ls_timesheet-auspres.
+
+      "substitui pontos por virgulas
+      REPLACE
+        ALL OCCURRENCES OF '.'
+        IN me->ls_timesheet-hora WITH ','.
+
+      "se houver algum ponto encontrado
+      IF sy-subrc EQ 0.
+        me->ls_timesheet-hora = '0'.
+        me->ls_timesheet-validacao = icon_red_light.
+      ENDIF.
+
+      "tratamento das horas do projeto em caso de palavras
+      TRANSLATE me->ls_timesheet-hora TO UPPER CASE.
+
+      "se houver letra ao invés de um número
+      IF me->ls_timesheet-hora CA sy-abcde.
+        me->ls_timesheet-hora = '0'.
+        me->ls_timesheet-validacao = icon_red_light.
+      ENDIF.
+
       ts-hora      = me->ls_timesheet-hora.
       ts-validacao = me->ls_timesheet-validacao.
       APPEND ts TO table_timesheet.
@@ -1529,8 +1550,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CLEAR ts.
     ENDLOOP.
 
-    me->get_wronglines( ).
+    "metodo que procura erros no excel que nao estejam vinculados a projetos
+    me->get_wronglines_datafile( ).
 
+    "passa linhas de erros para a tabela de saida
     IF me->tt_alv IS NOT INITIAL.
       LOOP AT me->tt_alv INTO me->st_alv.
         APPEND me->st_alv TO table_timesheet.
@@ -1584,10 +1607,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WRONGLINES
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_WRONGLINES_DATAFILE
 * +-------------------------------------------------------------------------------------------------+
 * +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD get_wronglines.
+  METHOD get_wronglines_datafile.
 
     "----------------------------------------------------------------------------------------------
     "info: procura linhas mal preenchidas no documento
@@ -1617,6 +1640,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           lv_str_coord  TYPE string,
           lv_str_coord2 TYPE string.
 
+    "setup das coordenadas
     lv_coord = 'A'.
     lv_coord_num = 10.
     lv_coord2 = 'B'.
@@ -1639,8 +1663,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
       DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
 
-      CLEAR me->ls_peps.
-
       "define a coordenada da celula ao inicio da sheet
       lv_str_coord = lv_coord_num.
       lv_str_coord2 = lv_coord_num.
@@ -1649,7 +1671,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CONCATENATE lv_coord2 lv_str_coord2 INTO lv_str_coord2. "A10
       CONDENSE lv_str_coord2 NO-GAPS.
 
-      "pega primeiramente o numero do colaborador
+      "pega as informacoes do colaborador
       READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
 
       "numero do colaborador
@@ -1673,14 +1695,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
       me->st_alv-cntr_cust = cell->cell_value.
 
-      "itera sobre os seis projetos
+      "itera sobre os seis projetos tanto na coluna A quanto na B
       DO 6 TIMES.
 
         "procura se há peps ativas
         READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
         READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell2) WITH KEY cell_coords = lv_str_coord2. "B10...
 
-        "se houver pep disponivel
+        "se nao houverem peps selecionadas
         IF cell->cell_value EQ 'Selecione' AND cell2->cell_value EQ 'Selecione'.
 
           "itera sobre os 31 dias do mes -- valor fixo
@@ -1689,18 +1711,60 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "verifica as horas trabalhadas
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
 
-            "se houver hora trabalhada...
+            "caso seja uma letra, passa o valor da celula para maiuscula por precaucao
+            TRANSLATE cell->cell_value TO UPPER CASE.
+
+            "substitui pontos por virgulas
+            REPLACE
+              ALL OCCURRENCES OF '.'
+              IN cell->cell_value WITH ','.
+
+            "se houver algum ponto encontrado
+            IF sy-subrc EQ 0.
+              cell->cell_value = 'A'.
+            ENDIF.
+
+            "se houver hora trabalhada em projeto vazio...
             IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
 
               me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
+
+              "se for uma letra ou palavra...
+              IF cell->cell_value CA sy-abcde.
+                cell->cell_value = '0'.
+              ENDIF.
+
               me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
               me->st_alv-validacao = icon_red_light.
-              APPEND st_alv TO tt_alv.           "insere a tabela de peps
+              APPEND st_alv TO tt_alv.
 
               CLEAR: me->st_alv-dia, me->st_alv-hora.
               CLEAR: cell->cell_value.
               CLEAR: cell2->cell_value.
+
+            ELSEIF cell->cell_value IS INITIAL.
+
+              me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
+              me->st_alv-hora = '0'. "recebe a hora trabalhada
+              me->st_alv-validacao = icon_red_light.
+              APPEND st_alv TO tt_alv.
+
+              CLEAR: me->st_alv-dia, me->st_alv-hora.
+              CLEAR: cell->cell_value.
+              CLEAR: cell2->cell_value.
+
             ENDIF.
+
+            "substitui pontos por virgulas
+              REPLACE
+                ALL OCCURRENCES OF '.'
+                IN cell->cell_value WITH ','.
+
+              "se houver algum ponto encontrado
+              IF sy-subrc EQ 0.
+                me->st_alv-hora = '0'.
+                me->st_alv-validacao = icon_red_light.
+              ENDIF.
 
             ADD 1 TO lv_hour_index. "incrementa para a proxima hora
             ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
@@ -1710,6 +1774,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           me->get_month_datafile( ). "reseta data do mes
 
         ENDIF.
+
+        me->get_month_datafile( ). "reseta data do mes
 
         "redefine a coordenada para o proximo projeto
         lv_coord = 'A'.
