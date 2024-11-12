@@ -108,6 +108,7 @@ CLASS zcl_excel_builder2 DEFINITION
              hora      TYPE string,
              validacao TYPE icon_d,
              row       TYPE string,
+             info      TYPE string,
            END OF ty_timesheet.
 
     DATA: it_timesheet TYPE TABLE OF ty_timesheet,
@@ -1532,6 +1533,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       IF sy-subrc EQ 0.
         me->ls_timesheet-hora = '0'.
         me->ls_timesheet-validacao = icon_red_light.
+        me->ls_timesheet-info = '@05@' && 'Caractere Inválido' .
       ENDIF.
 
       "tratamento das horas do projeto em caso de palavras
@@ -1541,10 +1543,17 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       IF me->ls_timesheet-hora CA sy-abcde.
         me->ls_timesheet-hora = '0'.
         me->ls_timesheet-validacao = icon_red_light.
+        me->ls_timesheet-info = '@05@' && 'Caractere Inválido' .
+      ELSEIF me->ls_timesheet-hora IS INITIAL.
+        me->ls_timesheet-hora = '0'.
+        me->ls_timesheet-validacao = icon_red_light.
+        me->ls_timesheet-info = '@05@' && 'Célula Vazia' .
       ENDIF.
 
       ts-hora      = me->ls_timesheet-hora.
       ts-validacao = me->ls_timesheet-validacao.
+      ts-info      = me->ls_timesheet-info.
+
       APPEND ts TO table_timesheet.
       CLEAR me->ls_timesheet.
       CLEAR ts.
@@ -1732,10 +1741,22 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
               "se for uma letra ou palavra...
               IF cell->cell_value CA sy-abcde.
                 cell->cell_value = '0'.
+                me->st_alv-validacao = icon_red_light.
+                me->st_alv-info = '@05@' && 'Caractere Inválido' .
+
+              "se a celula nao estiver preenchida
+              ELSEIF cell->cell_value IS INITIAL.
+                cell->cell_value = '0'.
+                me->st_alv-validacao = icon_red_light.
+                me->st_alv-info = '@05@' && 'Célula Vazia' .
+
+              "se houver hora nao vinculada a projeto / ausencia e presenca
+              ELSE.
+                me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
+                me->st_alv-validacao = icon_red_light.
+                me->st_alv-info = '@05@' && 'Horário Inválido' .
               ENDIF.
 
-              me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
-              me->st_alv-validacao = icon_red_light.
               APPEND st_alv TO tt_alv.
 
               CLEAR: me->st_alv-dia, me->st_alv-hora.
@@ -1747,6 +1768,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
               me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
               me->st_alv-hora = '0'. "recebe a hora trabalhada
               me->st_alv-validacao = icon_red_light.
+              me->st_alv-info = '@05@' && 'Célula Vazia' .
               APPEND st_alv TO tt_alv.
 
               CLEAR: me->st_alv-dia, me->st_alv-hora.
@@ -1756,15 +1778,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             ENDIF.
 
             "substitui pontos por virgulas
-              REPLACE
-                ALL OCCURRENCES OF '.'
-                IN cell->cell_value WITH ','.
+            REPLACE
+              ALL OCCURRENCES OF '.'
+              IN cell->cell_value WITH ','.
 
-              "se houver algum ponto encontrado
-              IF sy-subrc EQ 0.
-                me->st_alv-hora = '0'.
-                me->st_alv-validacao = icon_red_light.
-              ENDIF.
+            "se houver algum ponto encontrado
+            IF sy-subrc EQ 0.
+              me->st_alv-hora = '0'.
+              me->st_alv-validacao = icon_red_light.
+            ENDIF.
 
             ADD 1 TO lv_hour_index. "incrementa para a proxima hora
             ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
@@ -2315,6 +2337,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           MOVE-CORRESPONDING me->ls_peps TO me->ls_timesheet.     "insere as informacoes do projeto na linha
           CLEAR: me->ls_timesheet-auspres.                        "limpeza de dados indesejáveis - importante
           me->ls_timesheet-validacao = icon_green_light.
+          me->ls_timesheet-info = '@04@' &&  ' OK' .
           APPEND me->ls_timesheet TO me->it_timesheet.            "insere a linha na tabela de output
 
           "limpa as linhas
@@ -2329,6 +2352,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           MOVE-CORRESPONDING me->ls_auspres  TO me->ls_timesheet. "insere a ausencia e presenca na estrutura
           CLEAR: me->ls_timesheet-pep.                            "limpa o pep, caso haja
           me->ls_timesheet-validacao = icon_green_light.
+          me->ls_timesheet-info = '@04@' && 'OK' .
           APPEND me->ls_timesheet TO me->it_timesheet.            "insere novo registro
 
           "limpa as linhas
@@ -2398,7 +2422,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
             row3-validacao = icon_yellow_light.
             APPEND row3 TO it_timesheet2. "insere a nova linha
-
 
             CLEAR: row3, row2, row1.
             EXIT.
