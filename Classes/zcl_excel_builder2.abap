@@ -2520,6 +2520,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [<---] TABLE_TIMESHEET_OUTPUT         TYPE        ZTSHRALV_TT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD validation_datafile.
+    
+    "----------------------------------------------------------------------------------------------
+    "info: validacao final para os dados dos colaboradores da timesheet
+    "a validacao é a comparacao do que está no documento com que o que existe na base de dados
+    "
+    "data de alteracao: 13.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
 
     IF table_timesheet IS INITIAL.
       MESSAGE | Não há dados a serem verificados | TYPE 'S' DISPLAY LIKE 'E'.
