@@ -106,7 +106,6 @@ CLASS zcl_excel_builder2 DEFINITION
              pep       TYPE char100,
              auspres   TYPE char100,
              hora      TYPE string,
-             validacao TYPE icon_d,
              row       TYPE string,
              info      TYPE string,
            END OF ty_timesheet.
@@ -1533,16 +1532,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "se houver letra ao invés de um número
       IF me->ls_timesheet-hora CA sy-abcde.
         me->ls_timesheet-hora = '0'.
-        me->ls_timesheet-validacao = icon_red_light.
         me->ls_timesheet-info = '@05@' && 'Caractere Inválido' .
       ELSEIF me->ls_timesheet-hora IS INITIAL.
         me->ls_timesheet-hora = '0'.
-        me->ls_timesheet-validacao = icon_red_light.
         me->ls_timesheet-info = '@05@' && 'Célula Vazia' .
       ENDIF.
 
       ts-hora      = me->ls_timesheet-hora.
-      ts-validacao = me->ls_timesheet-validacao.
       ts-info      = me->ls_timesheet-info.
 
       APPEND ts TO table_timesheet.
@@ -1740,19 +1736,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
               "se for uma letra ou palavra...
               IF cell->cell_value CA sy-abcde.
                 cell->cell_value = '0'.
-                me->st_alv-validacao = icon_red_light.
                 me->st_alv-info = '@05@' && 'Caractere Inválido' .
 
                 "se a celula nao estiver preenchida
               ELSEIF cell->cell_value IS INITIAL.
                 cell->cell_value = '0'.
-                me->st_alv-validacao = icon_red_light.
                 me->st_alv-info = '@05@' && 'Célula Vazia' .
 
                 "se houver hora nao vinculada a projeto / ausencia e presenca
               ELSE.
                 me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
-                me->st_alv-validacao = icon_red_light.
                 me->st_alv-info = '@05@' && 'Horário Inválido' .
               ENDIF.
 
@@ -1766,7 +1759,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
               me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
               me->st_alv-hora = '0'. "recebe a hora trabalhada
-              me->st_alv-validacao = icon_red_light.
               me->st_alv-info = '@05@' && 'Célula Vazia' .
               APPEND st_alv TO tt_alv.
 
@@ -1784,7 +1776,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "se houver algum ponto encontrado
             IF sy-subrc EQ 0.
               me->st_alv-hora = '0'.
-              me->st_alv-validacao = icon_red_light.
             ENDIF.
 
             ADD 1 TO lv_hour_index. "incrementa para a proxima hora
@@ -2334,7 +2325,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
           MOVE-CORRESPONDING me->ls_employee TO me->ls_timesheet. "preenche a estrutura com os dados do colaborador
           MOVE-CORRESPONDING me->ls_peps TO me->ls_timesheet.     "insere as informacoes do projeto na linha
-          me->ls_timesheet-validacao = icon_green_light.
           me->ls_timesheet-info = '@04@' &&  ' OK' .
           CLEAR: me->ls_timesheet-auspres.                        "limpeza de dados indesejáveis - importante
           APPEND me->ls_timesheet TO me->it_timesheet.            "insere a linha na tabela de output
@@ -2350,7 +2340,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           MOVE-CORRESPONDING me->ls_employee TO me->ls_timesheet. "preenche o campo de ausencia e presenca
           MOVE-CORRESPONDING me->ls_auspres  TO me->ls_timesheet. "insere a ausencia e presenca na estrutura
           CLEAR: me->ls_timesheet-pep.                            "limpa o pep, caso haja
-          me->ls_timesheet-validacao = icon_green_light.
           me->ls_timesheet-info = '@04@' && 'OK' .
           APPEND me->ls_timesheet TO me->it_timesheet.            "insere novo registro
 
@@ -2419,8 +2408,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             DELETE it_timesheet2 WHERE auspres EQ row2-auspres AND row EQ row1-row AND dia EQ row1-dia.
             DELETE it_timesheet2 WHERE pep EQ row1-pep AND row EQ row1-row AND dia EQ row2-dia.
 
-            row3-validacao = icon_yellow_light.
-            row3-info      = 'OBS'.
+            row3-info      = '@1A@' && 'OBS'.
             APPEND row3 TO it_timesheet2. "insere a nova linha
 
             CLEAR: row3, row2, row1.
@@ -2544,7 +2532,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     flag_auspres = abap_false.
     DATA: table_timesheet2 TYPE ztshralv_tt.
     table_timesheet2 = table_timesheet.
-    data: centro_custo type i.
+    DATA: lv_endda TYPE endda.
+    lv_endda = '99991231'.
 
     me->get_projects( ). "
     me->get_auspres( ).
@@ -2557,9 +2546,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "-------------------------------------------------------------------------------
       "                        verifica o numero do colaborador
       "-------------------------------------------------------------------------------
-      SELECT SINGLE pernr FROM pa0001 INTO @DATA(lv_pernr) WHERE pernr EQ @ls_timesheet-num.
+      SELECT SINGLE pernr
+        FROM pa0001 INTO @DATA(lv_pernr)
+        WHERE pernr EQ @ls_timesheet-num.
       IF sy-subrc NE 0.
-        ls_timesheet-validacao = icon_red_light.
         ls_timesheet-info      = me->st_alv-info = '@05@' && 'Colaborador não existe' .
         MODIFY table_timesheet2 FROM ls_timesheet.
       ELSE.
@@ -2568,26 +2558,27 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         "                        verifica a equipa do colaborador
         "-------------------------------------------------------------------------------
 
-        SELECT SINGLE pernr FROM pa0001 INTO @DATA(lv_pernr2) WHERE pernr EQ @ls_timesheet-num AND vdsk1 EQ @ls_timesheet-equipa.
+        SELECT SINGLE pernr
+          FROM pa0001 INTO @DATA(lv_pernr2)
+          WHERE pernr EQ @ls_timesheet-num
+          AND vdsk1 EQ @ls_timesheet-equipa.
         IF sy-subrc NE 0.
-          ls_timesheet-validacao = icon_red_light.
-          ls_timesheet-info      = me->st_alv-info = '@05@' && 'Colaborador não pertence a Equipa' .
+          ls_timesheet-info      = me->st_alv-info = '@05@' && 'Equipa não existe' .
           MODIFY table_timesheet2 FROM ls_timesheet.
         ELSE.
 
-            "-------------------------------------------------------------------------------
-            "                       verifica se o projeto existe
-            "-------------------------------------------------------------------------------
+          "-------------------------------------------------------------------------------
+          "                       verifica se o projeto existe
+          "-------------------------------------------------------------------------------
 
-            IF ls_timesheet-pep IS NOT INITIAL.
-              LOOP AT me->it_linha_projetos INTO DATA(ls_projetos).
-                IF ls_timesheet-pep EQ ls_projetos-line.
-                  flag_projects = abap_true.
-                  EXIT.
-                ENDIF.
-              ENDLOOP.
+          IF ls_timesheet-pep IS NOT INITIAL.
+            LOOP AT me->it_linha_projetos INTO DATA(ls_projetos).
+              IF ls_timesheet-pep EQ ls_projetos-line.
+                flag_projects = abap_true.
+                EXIT.
+              ENDIF.
+            ENDLOOP.
             IF flag_projects NE abap_true.
-              ls_timesheet-validacao = icon_red_light.
               ls_timesheet-info      = me->st_alv-info = '@05@' && 'Projeto Inexistente' .
               MODIFY table_timesheet2 FROM ls_timesheet.
             ELSE.
@@ -2605,7 +2596,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
                 ENDIF.
               ENDLOOP.
               IF flag_auspres NE abap_true.
-                ls_timesheet-validacao = icon_red_light.
                 ls_timesheet-info      = me->st_alv-info = '@05@' && 'Código de Ausência Inexistente' .
                 MODIFY table_timesheet2 FROM ls_timesheet.
               ENDIF.
@@ -2616,10 +2606,24 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "-------------------------------------------------------------------------------
 
             IF ls_timesheet-cntr_cust IS NOT INITIAL.
-              centro_custo = ls_timesheet-cntr_cust.
-              SELECT SINGLE pernr FROM pa0001 INTO @DATA(lv_pernr3) WHERE pernr EQ @ls_timesheet-num AND kostl EQ @centro_custo.
+
+              DATA: lv_centro TYPE kostl.
+
+              "funcao para converter o centro de custo com o 0 a esquerda
+              CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+                EXPORTING
+                  input  = ls_timesheet-cntr_cust
+                IMPORTING
+                  output = lv_centro.
+
+              SELECT SINGLE pernr
+                FROM pa0001
+                INTO @DATA(lv_centrocusto)
+                WHERE pernr EQ @ls_timesheet-num
+                AND kostl EQ @lv_centro
+                AND endda = @lv_endda.
+
               IF sy-subrc NE 0.
-                ls_timesheet-validacao = icon_red_light.
                 ls_timesheet-info      = me->st_alv-info = '@05@' && 'Centro de Custo não Existe' .
                 MODIFY table_timesheet2 FROM ls_timesheet.
               ENDIF.
