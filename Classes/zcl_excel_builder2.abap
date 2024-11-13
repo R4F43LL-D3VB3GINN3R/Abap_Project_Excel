@@ -105,7 +105,7 @@ CLASS zcl_excel_builder2 DEFINITION
              dia       TYPE sy-datum,
              pep       TYPE char100,
              auspres   TYPE char100,
-             hora      TYPE string,
+             hora      TYPE catshours,
              row       TYPE string,
              info      TYPE string,
            END OF ty_timesheet.
@@ -167,6 +167,11 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS get_timesheet_datafile
       EXPORTING
         table_timesheet TYPE ztshralv_tt
+        result          TYPE zrla_result.
+    METHODS insert_bapicats
+      IMPORTING
+        table_timesheet TYPE ztshralv_tt
+      EXPORTING
         result          TYPE zrla_result.
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -602,7 +607,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: gera um calendario para cada colaborador de acordo com o mes requerido
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 10.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -918,7 +923,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe ausencias e presencas do arquivo excel
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 10.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1143,7 +1148,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os dados dos colaboradores do arquivo excel e guarda numa tabela interna
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 11.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1274,7 +1279,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe o mes do arquivo excel referente a celula B6
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 11.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1314,7 +1319,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os peps dos colaboradores no excel file
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 11.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1503,6 +1508,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD get_timesheet_datafile.
 
+    "-------------------------------------------------------
+    "info: preenche a tabela que vai ser exibida no alv
+    "
+    "data de alteracao: 09.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "-------------------------------------------------------
+
     "verifica se o atributo está preenchido
     IF me->it_timesheet IS INITIAL.
       result-rc = 1.
@@ -1527,10 +1540,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ts-auspres   = me->ls_timesheet-auspres.
 
       "tratamento das horas do projeto em caso de palavras
-      TRANSLATE me->ls_timesheet-hora TO UPPER CASE.
+      DATA: lv_hours TYPE string.
+      lv_hours = me->ls_timesheet-hora.
+      TRANSLATE lv_hours TO UPPER CASE.
 
       "se houver letra ao invés de um número
-      IF me->ls_timesheet-hora CA sy-abcde.
+      IF lv_hours CA sy-abcde.
         me->ls_timesheet-hora = '0'.
         me->ls_timesheet-info = '@05@' && 'Caractere Inválido' .
       ELSEIF me->ls_timesheet-hora IS INITIAL.
@@ -1580,7 +1595,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os horarios de trabalho do colaborador enviados da base de dados
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 11.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1841,6 +1856,75 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CLEAR st_alv. "limpa a estrutura para a proxima sheet
 
     ENDWHILE.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_EXCEL_BUILDER2->INSERT_BAPICATS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] TABLE_TIMESHEET                TYPE        ZTSHRALV_TT
+* | [<---] RESULT                         TYPE        ZRLA_RESULT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD insert_bapicats.
+
+    "-------------------------------------------------------
+    "info: insere os dados validados na alv no catsdb
+    "
+    "data de alteracao: 13.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "-------------------------------------------------------
+
+    IF table_timesheet IS INITIAL.
+      result-rc = 4.
+      result-message = | Não há dados para serem inseridos no cats |.
+    ENDIF.
+
+    "Inserir um novo registro em cats
+    DATA: it_bapicats1 TYPE TABLE OF bapicats1,
+          ls_bapicats1 TYPE bapicats1.
+
+    "tabela e estrutura para retorno de dados
+    data: it_return type table of bapiret2,
+          ls_return type bapiret2.
+
+    "passa os dados para a estrutura bapicast e insere a tabela interna.
+    LOOP AT table_timesheet INTO DATA(ls_timesheet).
+      ls_bapicats1-workdate       = ls_timesheet-dia.
+      ls_bapicats1-employeenumber = ls_timesheet-num.
+      ls_bapicats1-send_cctr      = ls_timesheet-cntr_cust.
+      ls_bapicats1-wbs_element    = ls_timesheet-pep.
+      ls_bapicats1-catshours      = ls_timesheet-hora.
+      APPEND ls_bapicats1 TO it_bapicats1.
+      CLEAR ls_bapicats1.
+      CLEAR ls_timesheet.
+    ENDLOOP.
+
+    IF it_bapicats1 IS NOT INITIAL.
+
+      CALL FUNCTION 'BAPI_CATIMESHEETMGR_INSERT'
+        EXPORTING
+          testrun        = 'X'
+        TABLES
+          catsrecords_in = it_bapicats1
+          return         = it_return.  " Tabela de mensagens de retorno
+
+      result-rc = 0.
+
+      LOOP AT it_return INTO ls_return.
+        IF ls_return-type = 'E'.  " Tipo 'E' indica erro
+          result-rc = 4.
+          result-message = ls_return-message.
+          EXIT.  " Interrompe a execução se houver erros
+        ENDIF.
+      ENDLOOP.
+
+      if result-rc eq 0.
+        result-message = | Dados inseridos com sucesso. |.
+      endif.
+
+    ENDIF.
 
   ENDMETHOD.
 
@@ -2520,7 +2604,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [<---] TABLE_TIMESHEET_OUTPUT         TYPE        ZTSHRALV_TT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD validation_datafile.
-    
+
     "----------------------------------------------------------------------------------------------
     "info: validacao final para os dados dos colaboradores da timesheet
     "a validacao é a comparacao do que está no documento com que o que existe na base de dados
