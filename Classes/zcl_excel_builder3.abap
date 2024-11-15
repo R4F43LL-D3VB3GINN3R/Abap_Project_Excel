@@ -607,8 +607,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: gera um calendario para cada colaborador de acordo com o mes requerido
     "
-    "data de alteracao: 10.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: documentacao e testes falhos de insercao de numeros inteiros em ip_values das cells
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -717,7 +717,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ADD 1 TO lv_counterployees. "passa para o proximo colaborador na verificacao do workschedule
 
      "------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                       "impressao do calendario
+                                                               "impressao do calendario - "dias do calendario 01-31
      "------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         "lv_stringdaydate = retorno da funcao zweekdate
@@ -810,7 +810,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDDO.
 
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                      "dias do calendario 01-31
+                                                                 "impressao do complemento do calendario
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     "verifica quanto falta para 31 dias para completar o calendario
@@ -861,6 +861,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     ENDIF.
 
+    "---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    "resets e refreshs
     lv_counterdays = 5. "reseta o contador para a 5th coluna
     lv_counterployees = 1. "reseta o contador de horarios de trabalho
     CLEAR: lv_day, lv_strday. "limpa os contadores de dias em string e int.
