@@ -1552,8 +1552,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "-------------------------------------------------------
     "info: preenche a tabela que vai ser exibida no alv
     "
-    "data de alteracao: 09.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: limpeza de dados nao reutilizaveis
     "criado por: rafael albuquerque
     "-------------------------------------------------------
 
@@ -1583,8 +1583,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
       "-------------------------------------------------------------------------------
       "verificacoes para casos de celulas erradas em projetos de ausencias e presencas
+      "-------------------------------------------------------------------------------
 
-      "tratamento das horas do projeto em caso de palavras
+      "tratamento das horas do projeto em caso de caracteres de letras
       DATA: lv_hours TYPE string.
       lv_hours = me->ls_timesheet-hora.
       TRANSLATE lv_hours TO UPPER CASE.
@@ -1608,8 +1609,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CLEAR ts.
     ENDLOOP.
 
-    "-------------------------------------------------------------------------------
+    "--------------------------------------------------------------------------------
     "verificacoes para casos de celulas erradas sem projetos de ausencias e presencas
+    "--------------------------------------------------------------------------------
 
     me->get_wronglines_datafile( ). "metodo que procura erros no excel que nao estejam vinculados a projetos
 
@@ -1621,12 +1623,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       REFRESH me->tt_alv.
     ENDIF.
 
-    "-------------------------------------------------------------------------------
+    CLEAR me->tt_alv.
+
+    "--------------------------------------------------------------------------------------------------
+    "validacao das linhas da timesheet (pernr, equipa, centro de custo, projeto e ausencias e presencas
+    "--------------------------------------------------------------------------------------------------
 
     "ordenacao da tabela de saida
     SORT table_timesheet BY dia nome ASCENDING. "ordena por dia e nome.
 
-    "validacao das linhas da timesheet (pernr, equipa, centro de custo, projeto e ausencias e presencas
+    "metodo para validacao de dados dos colaboradores
     me->validation_datafile(
       EXPORTING
         table_timesheet        = table_timesheet
