@@ -129,7 +129,7 @@ CLASS zcl_excel_builder2 DEFINITION
              num  TYPE string,
              dia  TYPE string,
              pep  TYPE string,
-             hora TYPE string,
+             hora TYPE catshours,
              row  TYPE string,
            END OF ty_peps.
 
@@ -529,7 +529,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA full_path TYPE string.
     DATA namefile TYPE string.
 
-    namefile = 'file'.
+    namefile = 'file'. "nome default para arquivo
 
     "metodo que salva nome e diretorio
     me->get_file_directory(
@@ -643,9 +643,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "formula para dias trabalhados
     DATA: form_dia_trab TYPE string.
 
-    "valor do horario dosq tempos gastos em projetos
-    lv_stringhour = '0,0'.
-
     "formula para somar horas planeadas e trabalhadas
     total_planeadas   = '=SUM(E7:AI7)'.   "formula para somar horas a trabalhar
     total_trabalhadas = '=SUM(E10:AI15)'. "formula para somar horas trabalhadas
@@ -665,23 +662,24 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_counterdays = 5.           "inicia o contador como cinco para contar a partir da 5th coluna
 
     "-------------------------------------------
+      "formatacao da data para começo do mês
+    "-------------------------------------------
 
     "reseta a data
     lv_newdate = lv_date+0(6). "recebe ano + mes
     lv_strday = '01'.          "sempre começamos pelo primeiro dia do mes
-
     "junta ano + mes e primeiro dia do mes
     CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
-    "-------------------------------------------
+    "---------------------------------------------------------------------------------------------
+                                    "work schedule do cats
+    "---------------------------------------------------------------------------------------------
 
     lv_counterployees = 1. "inicia o contador de index da tabela horarios
 
     "pega os horarios de cada funcionario por index de tabela
     READ TABLE me->it_colaboradores INTO me->ls_colaborador INDEX lv_counterployees.
     me->get_work_schedule( pernr = me->ls_colaborador-pernr ). "metodo para buscar work schedule
-
-    "-------------------------------------------
 
     "repete a quantidade de dias que tem o mes
     DO lv_countdays TIMES.
@@ -716,9 +714,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         ENDIF.
 
-        ADD 1 TO lv_counterployees. "incrementa o contador de horarios
+        ADD 1 TO lv_counterployees. "passa para o proximo colaborador na verificacao do workschedule
 
-        "cria a celula
+     "------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                       "impressao do calendario
+     "------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        "lv_stringdaydate = retorno da funcao zweekdate
+        "horas_planeadas  = retorno do workschedule do cats do colaborador
+
         TRY.
             lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = lv_stringdaydate ip_style = tp_style_bold_center_guid ).  "cabeçalho do calendário
             lo_worksheet->set_cell( ip_row = 7 ip_column = lv_counterdays ip_value = horas_planeadas  ip_style = tp_style_bold_center_guid2 ). "horas planeadas
@@ -728,27 +732,35 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         CLEAR lv_lettercollum. "limpa a letra da coluna para evitar concatenacoes
 
+        "-----------------------------------------------------------------------------------------------------
+
         "converte o numero da coluna em string da coluna
         TRY.
             me->convert_excel_column(
               EXPORTING
-                column_int    = lv_counterdays
+                column_int    = lv_counterdays   "numero da coluna
               IMPORTING
-                column_string = lv_lettercollum
+                column_string = lv_lettercollum  "coluna do excel
             ).
           CATCH zcx_excel INTO lx_excel.
             MESSAGE lx_excel->get_text( ) TYPE 'E'.
         ENDTRY.
 
         "celula que recebe a formula da soma de horas trabalhadas no dia
+        "a formula é atualizada conforme o calendario é construído
         CLEAR form_dia_trab.
         form_dia_trab = '=SUM(' && lv_lettercollum && '10:' && lv_lettercollum && '15)'. "atualiza a formula
+
+        "------------------------------------------------------------------------------------------------------
 
         TRY.
             lo_worksheet->set_cell( ip_row = 8 ip_column = lv_counterdays ip_value = '0,0' ip_formula = form_dia_trab ip_style = tp_style_bold_center_guid2 ). "horas trabalhadas
           CATCH zcx_excel INTO lx_excel.
             MESSAGE lx_excel->get_text( ) TYPE 'E'.
         ENDTRY.
+
+        "valor do horario dos tempos gastos em projetos
+        lv_stringhour = '0,0'. "é obrigatório que se envie uma string
 
         "cabeçalho de tempo trabalhado ou ausentado
         TRY.
@@ -764,6 +776,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             MESSAGE lx_excel->get_text( ) TYPE 'E'.
         ENDTRY.
 
+        "configuracoes das colunas
         TRY.
             "setup da coluna para cada celula criada
             lo_column = lo_worksheet->get_column( ip_column = lv_counterdays ).
@@ -774,10 +787,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         ADD 1 TO lv_counterdays. "incrementa o contador para a proxima coluna
 
+        "-----------------------------------------------------------------------------------------
+                                         "atualizacao da data
+        "-----------------------------------------------------------------------------------------
+
         lv_day = lv_strday. "casting int
         ADD 1 TO lv_day.    "incrementa o dia
         lv_strday = lv_day. "casting string
-
         "se nao passamos dos 10 primeiros dias do mês
         IF lv_day LT 10.
           CONCATENATE '0' lv_strday INTO lv_strday. "adiciona o 0 na frente do numero
@@ -787,11 +803,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         lv_newdate = lv_date+0(6).                        "busca novamente ano e mes
         CONCATENATE lv_newdate lv_strday INTO lv_newdate. "redefine a data para o dia seguinte.
 
+        "-----------------------------------------------------------------------------------------
+
       ENDIF.
 
     ENDDO.
 
-    "----------------------------------------------------------------------------------------------------
+    "---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                      "dias do calendario 01-31
+    "---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     "verifica quanto falta para 31 dias para completar o calendario
     IF lv_countdays LT 31.
@@ -801,7 +821,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         "cria a celula
         TRY.
             lo_worksheet->set_cell( ip_row = 6 ip_column = lv_counterdays ip_value = 'XXXXXXX'  ip_style = tp_style_bold_center_guid ).  "cabeçalho do calendário
-            lo_worksheet->set_cell( ip_row = 7 ip_column = lv_counterdays ip_value = '0,0'        ip_style = tp_style_bold_center_guid2 ). "horas planeadas
+            lo_worksheet->set_cell( ip_row = 7 ip_column = lv_counterdays ip_value = '0,0'      ip_style = tp_style_bold_center_guid2 ). "horas planeadas
           CATCH zcx_excel INTO lx_excel.
             MESSAGE lx_excel->get_text( ) TYPE 'E'.
         ENDTRY.
@@ -1073,12 +1093,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os dados dos colaboradores da base de dados
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 14.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
-
-    DATA stringline TYPE string.
 
     "mockdata
 *    me->it_colaboradores = VALUE #( ( pernr = '1'  sname = 'Colaborador A' vdsk1 = 'PT01'  kostl = '001'  )
@@ -1092,6 +1110,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 *                                    ( pernr = '9'  sname = 'Colaborador I' vdsk1 = 'PT09'  kostl = '009'  )
 *                                    ( pernr = '10' sname = 'Colaborador J' vdsk1 = 'PT010' kostl = '0010' ) ).
 
+    "recebe a tabela de colaboradores vindo da aplicacao principal
     me->it_colaboradores = colaboradores. "recebe uma tabela interna e preenche o atributo de classe
 
     "verifica se algum dado foi enviado
@@ -1099,16 +1118,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       MESSAGE | Não foi possível receber os dados da base de dados | TYPE 'S' DISPLAY LIKE 'E'.
     ENDIF.
 
-    "consulta para obter textos de ausencia e presenca
-    "-------------------------------------------
-
-    me->get_auspres( ).
-
-    "consulta para obter textos de projetos
-    "---------------------------------------
-
-    me->get_projects( ).
-
+    "------------------------------------------------------------
+    me->get_auspres( ).  "recebe os dados de ausencia e presenca
+    me->get_projects( ). "consulta para obter textos de projetos
+    "------------------------------------------------------------
 
   ENDMETHOD.
 
@@ -1530,6 +1543,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA: ts TYPE ztshralv_st. "linha da timesheet.
 
     "passa os dados do atributo para a tabela interna
+    "sao todos os dados coletados do arquivo e com verificacoes para celulas vazias
     LOOP AT me->it_timesheet INTO me->ls_timesheet.
       ts-num       = me->ls_timesheet-num.
       ts-nome      = me->ls_timesheet-nome.
@@ -1538,6 +1552,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ts-dia       = me->ls_timesheet-dia.
       ts-pep       = me->ls_timesheet-pep.
       ts-auspres   = me->ls_timesheet-auspres.
+
+      "-------------------------------------------------------------------------------
+      "verificacoes para casos de celulas erradas em projetos de ausencias e presencas
 
       "tratamento das horas do projeto em caso de palavras
       DATA: lv_hours TYPE string.
@@ -1553,6 +1570,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         me->ls_timesheet-info = '@05@' && 'Célula Vazia' .
       ENDIF.
 
+      "-------------------------------------------------------------------------------
+
       ts-hora      = me->ls_timesheet-hora.
       ts-info      = me->ls_timesheet-info.
 
@@ -1561,8 +1580,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       CLEAR ts.
     ENDLOOP.
 
-    "metodo que procura erros no excel que nao estejam vinculados a projetos
-    me->get_wronglines_datafile( ).
+    "-------------------------------------------------------------------------------
+    "verificacoes para casos de celulas erradas sem projetos de ausencias e presencas
+
+    me->get_wronglines_datafile( ). "metodo que procura erros no excel que nao estejam vinculados a projetos
 
     "passa linhas de erros para a tabela de saida
     IF me->tt_alv IS NOT INITIAL.
@@ -1572,9 +1593,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       REFRESH me->tt_alv.
     ENDIF.
 
+    "-------------------------------------------------------------------------------
+
+    "ordenacao da tabela de saida
     SORT table_timesheet BY dia nome ASCENDING. "ordena por dia e nome.
 
-    "validacao das linhas da timesheet.
+    "validacao das linhas da timesheet (pernr, equipa, centro de custo, projeto e ausencias e presencas
     me->validation_datafile(
       EXPORTING
         table_timesheet        = table_timesheet
@@ -1886,8 +1910,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           ls_bapicats1 TYPE bapicats1.
 
     "tabela e estrutura para retorno de dados
-    data: it_return type table of bapiret2,
-          ls_return type bapiret2.
+    DATA: it_return TYPE TABLE OF bapiret2,
+          ls_return TYPE bapiret2.
 
     "passa os dados para a estrutura bapicast e insere a tabela interna.
     LOOP AT table_timesheet INTO DATA(ls_timesheet).
@@ -1920,9 +1944,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
 
-      if result-rc eq 0.
+      IF result-rc EQ 0.
         result-message = | Dados inseridos com sucesso. |.
-      endif.
+      ENDIF.
 
     ENDIF.
 
@@ -1941,6 +1965,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "data de alteracao: 09.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
+    "ultima alteracao: insercao de campo selecione em validacoes de projetos ausencias e presencas
     "----------------------------------------------------------------------------------------------
 
     DATA(o_xl_ws) = o_xl->get_active_worksheet( ).
@@ -1973,6 +1998,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         MESSAGE lx_excel->get_text( ) TYPE 'E'.
     ENDTRY.
 
+
     "linhas da tabela
     LOOP AT me->it_colaboradores INTO me->ls_colaborador.
 
@@ -2000,6 +2026,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     lv_index = 2. "reseta o contador
 
+    "----------------------------------------------------------------------------
+
     "começa a escrever a tabela da dropdown da lista de colaboradores
     TRY.
         lo_worksheet->set_cell( ip_row = 1 ip_column = 'Z' ip_value = 'Lista de Colaboradores' ip_style = tp_style_bold_center_guid ).
@@ -2018,7 +2046,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ADD 1 TO lv_index. "incrementa o contador
     ENDLOOP.
 
-    lv_index = 2. "reseta o contador
+    lv_index = 3. "reseta o contador
 
     "----------------------------------------------------------------------------
 
@@ -2026,6 +2054,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     TRY.
         lo_worksheet->set_cell( ip_row = 1 ip_column = 'AA' ip_value = 'Ausências / Presenças' ip_style = tp_style_bold_center_guid ).
+        lo_worksheet->set_cell( ip_row = 2 ip_column = 'AA' ip_value = 'Selecione'             ip_style = tp_style_bold_center_guid ).
       CATCH zcx_excel INTO lx_excel.
         MESSAGE lx_excel->get_text( ) TYPE 'E'.
     ENDTRY.
@@ -2041,7 +2070,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ADD 1 TO lv_index. "incrementa o contador
     ENDLOOP.
 
-    lv_index = 2. "reseta o contador
+    lv_index = 3. "reseta o contador
 
     "----------------------------------------------------------------------------
 
@@ -2049,6 +2078,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     TRY.
         lo_worksheet->set_cell( ip_row = 1 ip_column = 'AB' ip_value = 'Lista de Projetos' ip_style = tp_style_bold_center_guid ).
+        lo_worksheet->set_cell( ip_row = 2 ip_column = 'AB' ip_value = 'Selecione' ip_style = tp_style_bold_center_guid ).
       CATCH zcx_excel INTO lx_excel.
         MESSAGE lx_excel->get_text( ) TYPE 'E'.
     ENDTRY.
@@ -2525,7 +2555,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
   METHOD upload_timesheet.
 
     "----------------------------------------------------------------------------------------------
-    "info: carrega o arquivo excel para o programa
+    "info: carrega o arquivo excel para o programa e invoca todos os metodos envolvidos na leitura
+    "do arquivo
     "
     "data de alteracao: 09.11.2024
     "alteracao: criacao do método
@@ -2587,6 +2618,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDIF.
 
     "----------------------------------------------------------------------------------------
+    "         metodos envolvidos no upload para programama ZHCM_EXCEL_UPLOAD.
+    "----------------------------------------------------------------------------------------
     me->get_employee_datafile( ).     "recebe os colaboradores do arquivo
     me->get_month_datafile( ).        "recebe o mês do arquivo
     me->get_peps_datafile( ).         "recebe os projetos dos colaboradores
@@ -2619,31 +2652,38 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA: flag_projects TYPE flag.
-    flag_projects = abap_false.
-    DATA: flag_auspres TYPE flag.
-    flag_auspres = abap_false.
     DATA: table_timesheet2 TYPE ztshralv_tt.
     table_timesheet2 = table_timesheet.
     DATA: lv_endda TYPE endda.
     lv_endda = '99991231'.
 
-    me->get_projects( ). "
-    me->get_auspres( ).
+    "recebimento dos dados para validacao
+    "-----------------------------------------------------------------------------------------
+    me->get_projects( ). "recebe os projetos coletados da base de dados
+    me->get_auspres( ).  "recebe os motivos de ausencia e presenca coletados da base de dados
+    SELECT pernr, vdsk1  FROM pa0001 INTO TABLE @DATA(it_equipas_2).   "recebe as equipas
+    SELECT pernr, kostl  FROM pa0001 INTO TABLE @DATA(it_centrocusto). "recebe os centros de custo
+    "-----------------------------------------------------------------------------------------
 
     "itera sobre a tabela da timesheet
     LOOP AT table_timesheet2 INTO DATA(ls_timesheet).
-      flag_projects = abap_false.
-      flag_auspres  = abap_false.
 
       "-------------------------------------------------------------------------------
       "                        verifica o numero do colaborador
       "-------------------------------------------------------------------------------
-      SELECT SINGLE pernr
-        FROM pa0001 INTO @DATA(lv_pernr)
-        WHERE pernr EQ @ls_timesheet-num.
-      IF sy-subrc NE 0.
-        ls_timesheet-info      = me->st_alv-info = '@05@' && 'Colaborador não existe' .
+
+      DATA: lv_name TYPE emnam.
+
+      "funcao que retorna o nome do colaborador baseado no numero recebido
+      CALL FUNCTION 'HR_TMW_GET_EMPLOYEE_NAME'
+        EXPORTING
+          person_no = ls_timesheet-num
+        IMPORTING
+          edit_name = lv_name.
+
+      "se o nome foi achado
+      IF lv_name IS INITIAL.
+        ls_timesheet-info = me->st_alv-info = '@05@' && 'Número de Colaborador não existe.' .
         MODIFY table_timesheet2 FROM ls_timesheet.
       ELSE.
 
@@ -2651,10 +2691,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         "                        verifica a equipa do colaborador
         "-------------------------------------------------------------------------------
 
-        SELECT SINGLE pernr
-          FROM pa0001 INTO @DATA(lv_pernr2)
-          WHERE pernr EQ @ls_timesheet-num
-          AND vdsk1 EQ @ls_timesheet-equipa.
+        READ TABLE it_equipas_2 INTO DATA(ls_equipa_2) WITH KEY pernr = ls_timesheet-num vdsk1 = ls_timesheet-equipa.
+
         IF sy-subrc NE 0.
           ls_timesheet-info      = me->st_alv-info = '@05@' && 'Equipa não existe' .
           MODIFY table_timesheet2 FROM ls_timesheet.
@@ -2665,64 +2703,47 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           "-------------------------------------------------------------------------------
 
           IF ls_timesheet-pep IS NOT INITIAL.
-            LOOP AT me->it_linha_projetos INTO DATA(ls_projetos).
-              IF ls_timesheet-pep EQ ls_projetos-line.
-                flag_projects = abap_true.
-                EXIT.
-              ENDIF.
-            ENDLOOP.
-            IF flag_projects NE abap_true.
-              ls_timesheet-info      = me->st_alv-info = '@05@' && 'Projeto Inexistente' .
+            READ TABLE me->it_linha_projetos INTO DATA(ls_projetos) WITH KEY line = ls_timesheet-pep.
+            IF sy-subrc NE 0.
+              ls_timesheet-info = me->st_alv-info = '@05@' && 'Projeto Inexistente' .
               MODIFY table_timesheet2 FROM ls_timesheet.
-            ELSE.
             ENDIF.
-
-            "-------------------------------------------------------------------------------
-            "             verifica se o motivo de ausencia e presenca existe
-            "-------------------------------------------------------------------------------
-
-            IF ls_timesheet-auspres IS NOT INITIAL.
-              LOOP AT me->it_line_preaus INTO DATA(ls_auspres).
-                IF ls_timesheet-auspres EQ ls_auspres-line.
-                  flag_auspres = abap_true.
-                  EXIT.
-                ENDIF.
-              ENDLOOP.
-              IF flag_auspres NE abap_true.
-                ls_timesheet-info      = me->st_alv-info = '@05@' && 'Código de Ausência Inexistente' .
-                MODIFY table_timesheet2 FROM ls_timesheet.
-              ENDIF.
-            ENDIF.
-
-            "-------------------------------------------------------------------------------
-            "                          verifica o centro de custo
-            "-------------------------------------------------------------------------------
-
-            IF ls_timesheet-cntr_cust IS NOT INITIAL.
-
-              DATA: lv_centro TYPE kostl.
-
-              "funcao para converter o centro de custo com o 0 a esquerda
-              CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
-                EXPORTING
-                  input  = ls_timesheet-cntr_cust
-                IMPORTING
-                  output = lv_centro.
-
-              SELECT SINGLE pernr
-                FROM pa0001
-                INTO @DATA(lv_centrocusto)
-                WHERE pernr EQ @ls_timesheet-num
-                AND kostl EQ @lv_centro
-                AND endda = @lv_endda.
-
-              IF sy-subrc NE 0.
-                ls_timesheet-info      = me->st_alv-info = '@05@' && 'Centro de Custo não Existe' .
-                MODIFY table_timesheet2 FROM ls_timesheet.
-              ENDIF.
-            ENDIF.
-
           ENDIF.
+
+          "-------------------------------------------------------------------------------
+          "             verifica se o motivo de ausencia e presenca existe
+          "-------------------------------------------------------------------------------
+
+          IF ls_timesheet-auspres IS NOT INITIAL.
+            READ TABLE me->it_line_preaus INTO DATA(ls_auspres) WITH KEY line = ls_timesheet-auspres.
+            IF sy-subrc NE 0.
+              ls_timesheet-info = me->st_alv-info = '@05@' && 'Código de Ausência Inexistente' .
+              MODIFY table_timesheet2 FROM ls_timesheet.
+            ENDIF.
+          ENDIF.
+
+          "-------------------------------------------------------------------------------
+          "                          verifica o centro de custo
+          "-------------------------------------------------------------------------------
+
+          IF ls_timesheet-cntr_cust IS NOT INITIAL.
+
+            DATA: lv_centro TYPE kostl.
+
+            "funcao para converter o centro de custo com o 0 a esquerda
+            CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+              EXPORTING
+                input  = ls_timesheet-cntr_cust
+              IMPORTING
+                output = lv_centro.
+
+            READ TABLE it_centrocusto INTO DATA(ls_centrocusto) WITH KEY kostl = lv_centro.
+            IF sy-subrc NE 0.
+              ls_timesheet-info      = me->st_alv-info = '@05@' && 'Centro de Custo não Existe' .
+              MODIFY table_timesheet2 FROM ls_timesheet.
+            ENDIF.
+          ENDIF.
+
         ENDIF.
       ENDIF.
     ENDLOOP.
