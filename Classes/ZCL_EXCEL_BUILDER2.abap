@@ -231,6 +231,7 @@ CLASS zcl_excel_builder2 DEFINITION
         string_coord_b TYPE string
         index_coord    TYPE i
         numrow         TYPE i.
+
 ENDCLASS.
 
 
@@ -2811,8 +2812,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "info: validacao final para os dados dos colaboradores da timesheet
     "a validacao é a comparacao do que está no documento com que o que existe na base de dados
     "
-    "data de alteracao: 13.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: limpeza de dados nao utilizados
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -2823,8 +2824,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     DATA: table_timesheet2 TYPE ztshralv_tt.
     table_timesheet2 = table_timesheet.
-    DATA: lv_endda TYPE endda.
-    lv_endda = '99991231'.
 
     "recebimento dos dados para validacao
     "-----------------------------------------------------------------------------------------
