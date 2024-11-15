@@ -154,7 +154,9 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS get_data
       IMPORTING
         !colaboradores TYPE zcol_tt.
-    METHODS download_xls .
+    METHODS download_xls
+      EXPORTING
+        result TYPE zrla_result.
     METHODS display_fast_excel
       IMPORTING
         !i_table_content TYPE REF TO data
@@ -514,14 +516,15 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->DOWNLOAD_XLS
 * +-------------------------------------------------------------------------------------------------+
+* | [<---] RESULT                         TYPE        ZRLA_RESULT
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD download_xls.
 
     "----------------------------------------------------------------------------------------------
     "info: realiza download do arquivo excel file
     "
-    "data de alteracao: 09.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: inclusao do parametro result para retorno de operacoes
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -591,7 +594,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "tratamento de erros
     IF sy-subrc NE 0.
-      MESSAGE 'Não foi possível realizar o download do arquivo' TYPE 'S' DISPLAY LIKE 'E'.
+      result-rc = sy-subrc.
+      result-message = 'Não foi possível realizar o download do arquivo'.
       RETURN.
     ENDIF.
 
@@ -662,7 +666,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_counterdays = 5.           "inicia o contador como cinco para contar a partir da 5th coluna
 
     "-------------------------------------------
-      "formatacao da data para começo do mês
+    "formatacao da data para começo do mês
     "-------------------------------------------
 
     "reseta a data
@@ -672,7 +676,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
     "---------------------------------------------------------------------------------------------
-                                    "work schedule do cats
+    "work schedule do cats
     "---------------------------------------------------------------------------------------------
 
     lv_counterployees = 1. "inicia o contador de index da tabela horarios
@@ -716,9 +720,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         ADD 1 TO lv_counterployees. "passa para o proximo colaborador na verificacao do workschedule
 
-     "------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                               "impressao do calendario - "dias do calendario 01-31
-     "------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        "------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        "impressao do calendario - "dias do calendario 01-31
+        "------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         "lv_stringdaydate = retorno da funcao zweekdate
         "horas_planeadas  = retorno do workschedule do cats do colaborador
@@ -788,7 +792,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ADD 1 TO lv_counterdays. "incrementa o contador para a proxima coluna
 
         "-----------------------------------------------------------------------------------------
-                                         "atualizacao da data
+        "atualizacao da data
         "-----------------------------------------------------------------------------------------
 
         lv_day = lv_strday. "casting int
@@ -810,7 +814,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDDO.
 
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                 "impressao do complemento do calendario
+    "impressao do complemento do calendario - caso necessite
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     "verifica quanto falta para 31 dias para completar o calendario
@@ -867,9 +871,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_counterdays = 5. "reseta o contador para a 5th coluna
     lv_counterployees = 1. "reseta o contador de horarios de trabalho
     CLEAR: lv_day, lv_strday. "limpa os contadores de dias em string e int.
-
     REFRESH me->tb_psp.
-
 
   ENDMETHOD.
 
@@ -883,10 +885,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe ausencias e presencas da base de dados
     "
-    "data de alteracao: 09.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: modificacao de verificacao de retorno de dados
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
+
+    "criação do range de datas para consulta
+    "---------------------------------------------------
 
     DATA: begin_month TYPE begda,
           end_month   TYPE endda.
@@ -915,6 +920,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       AND   t554s~begda LT @begin_month   "E a data inicio maior que a data final do mes
       AND   t554s~subty EQ t554t~awart.   "Onde o tipo de ausencia e presenca é igual ao Texto de ausência e presença
 
+    "verifica se houveram dados retornados
+    "----------------------------------------------------
+
+    IF me->it_aus_pre IS INITIAL.
+      MESSAGE | Não foram achados motivos de ausência e presença na base de dados | TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+
     "formacao da linha de textos para ausencia e presenca
     "----------------------------------------------------
 
@@ -925,14 +938,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       stringline = me->ls_aus_pre-subty. "casting do numero
       CONCATENATE stringline me->ls_aus_pre-atext INTO me->ls_line_preaus-line SEPARATED BY ' - '.
       APPEND me->ls_line_preaus TO me->it_line_preaus.
+      CLEAR stringline.
     ENDLOOP.
-
-    "verifica se algum dado foi enviado
-    IF me->it_line_preaus IS INITIAL.
-      MESSAGE | Não foi possível receber os dados da base de dados | TYPE 'S' DISPLAY LIKE 'E'.
-    ENDIF.
-
-    CLEAR stringline.
 
   ENDMETHOD.
 
@@ -951,13 +958,23 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
-    IF me->lv_xstr IS INITIAL.
+    "----------------------------------------------------
+    "    verificacao de dados essenciais para consulta
+    "----------------------------------------------------
+
+    IF me->lv_xstr IS INITIAL.          "tabela convertida em xstring
       RETURN.
-    ELSEIF me->gv_datemonth IS INITIAL.
+    ELSEIF me->gv_datemonth IS INITIAL. "data do mes
       RETURN.
-    ELSEIF me->it_employee IS INITIAL.
+    ELSEIF me->it_employee IS INITIAL.  "tabela de colaboradores
       RETURN.
     ENDIF.
+
+    "----------------------------------------------------
+
+    "----------------------------------------------------
+    "             tratmento das coordenadas
+    "----------------------------------------------------
 
     DATA: lv_index TYPE i.
     lv_index = 2.
@@ -973,14 +990,19 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA: lv_hour_index TYPE i.
     lv_hour_index = 144.
 
+    "----------------------------------------------------
+    "                 leitura do arquivo
+    "----------------------------------------------------
+
     "flag da sheet
     DATA: flag_next_sheet TYPE flag.
     flag_next_sheet = abap_false.
 
+    "leitor do arquivo
     DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
     DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
 
-    DATA(i) = 2.
+    DATA(i) = 2. "primeira pagina de colaboradores
 
     "itera por todas as sheets do excel, seja ela quantas houverem
     WHILE i <= lo_excel->get_worksheets_size( ).
@@ -1001,7 +1023,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "numero do colaborador
       me->ls_auspres-num = cell->cell_value.
 
-      "itera sobre os seis projetos
+      "----------------------------------------------------
+      "     itera sobre as seis ausencias e presencas
+      "----------------------------------------------------
+
       DO 6 TIMES.
 
         "procura se motivos de ausencia e presenca
@@ -1037,7 +1062,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         ENDIF.
 
-        "redefine a coordenada para o proximo motivo de ausencia ou presenca
+        "---------------------------------------------------------------------
+        " redefine a coordenada para o proximo motivo de ausencia ou presenca
+        "---------------------------------------------------------------------
+
         lv_coord = 'B'.
         ADD 1 TO lv_coord_num.
         lv_str_coord = lv_coord_num.
@@ -1948,7 +1976,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ENDLOOP.
 
       IF result-rc EQ 0.
-        result-message = | Dados inseridos com sucesso. |.
+        result-message = | Timesheet submetida com sucesso. |.
       ENDIF.
 
     ENDIF.
