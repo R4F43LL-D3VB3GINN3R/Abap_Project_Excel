@@ -346,7 +346,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
 
     "-------------------------------------------------------------------------------
-    "recebe uma tabela generica
+    "                           recebe uma tabela generica
     "-------------------------------------------------------------------------------
 
     "tipo de dados generico
@@ -367,7 +367,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     CREATE OBJECT o_converter.
 
     "-------------------------------------------------------------------------------
-    "converte para xstring
+    "                             converte para xstring
     "-------------------------------------------------------------------------------
 
     DATA: lx_error      TYPE REF TO cx_root,       "define uma referência para exceções
@@ -399,7 +399,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lo_worksheet = o_xl_ws.
 
     "-------------------------------------------------------------------------------
-    "conta a quantidade de colunas da tabela
+    "                    conta a quantidade de colunas da tabela
     "-------------------------------------------------------------------------------
 
     DATA: lo_table_descr  TYPE REF TO cl_abap_tabledescr,
@@ -411,7 +411,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA(lv_number_of_columns) = lines( lo_struct_descr->components ).
 
     "-------------------------------------------------------------------------------
-    "setup das colunas - largura
+    "                         setup das colunas - largura
     "-------------------------------------------------------------------------------
 
     me->set_style( ). "insere o estilo na coluna
@@ -444,7 +444,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDTRY.
 
     "-------------------------------------------------------------------------------
-    "caminho para o arquivo
+    "                            caminho para o arquivo
     "-------------------------------------------------------------------------------
 
     "tratamento de nome e extensão do arquivo
@@ -468,7 +468,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDIF.
 
     "-------------------------------------------------------------------------------
-    "escritor para arquivo
+    "                             escritor para arquivo
     "-------------------------------------------------------------------------------
 
     "inicia o escritor do arquivo
@@ -483,7 +483,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA(it_raw_data) = cl_bcs_convert=>xstring_to_solix( EXPORTING iv_xstring = lv_xl_xdata ).
 
     "-------------------------------------------------------------------------------
-    "download do arquivo Excel
+    "                            download do arquivo Excel
     "-------------------------------------------------------------------------------
 
     TRY.
@@ -502,7 +502,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDTRY.
 
     "-------------------------------------------------------------------------------
-    "tratamento de erros
+    "                               tratamento de erros
     "-------------------------------------------------------------------------------
 
     IF sy-subrc NE 0.
@@ -636,7 +636,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           lv_counterployees TYPE i,            "index da tabela de horarios de trabalho
           lv_stringhour     TYPE char5. "horario na celula em decimais
 
-    "rever as horas trabalhadas conforme consulta - aguardar info adicional
     DATA: horas_planeadas TYPE p DECIMALS 2.
     horas_planeadas = '8.00'.
     DATA: horas_planeadas2 TYPE string.
@@ -666,7 +665,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_counterdays = 5.           "inicia o contador como cinco para contar a partir da 5th coluna
 
     "-------------------------------------------
-    "formatacao da data para começo do mês
+    "  formatacao da data para começo do mês
     "-------------------------------------------
 
     "reseta a data
@@ -676,7 +675,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     CONCATENATE lv_newdate lv_strday INTO lv_newdate.
 
     "---------------------------------------------------------------------------------------------
-    "work schedule do cats
+    "                                  work schedule do cats
     "---------------------------------------------------------------------------------------------
 
     lv_counterployees = 1. "inicia o contador de index da tabela horarios
@@ -721,7 +720,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ADD 1 TO lv_counterployees. "passa para o proximo colaborador na verificacao do workschedule
 
         "------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        "impressao do calendario - "dias do calendario 01-31
+        "                                            impressao do calendario - "dias do calendario 01-31
         "------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
         "lv_stringdaydate = retorno da funcao zweekdate
@@ -792,7 +791,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         ADD 1 TO lv_counterdays. "incrementa o contador para a proxima coluna
 
         "-----------------------------------------------------------------------------------------
-        "atualizacao da data
+        "                                  atualizacao da data
         "-----------------------------------------------------------------------------------------
 
         lv_day = lv_strday. "casting int
@@ -814,7 +813,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ENDDO.
 
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
-    "impressao do complemento do calendario - caso necessite
+    "                                                 impressao do complemento do calendario - caso necessite
     "---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     "verifica quanto falta para 31 dias para completar o calendario
@@ -890,7 +889,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
-    "criação do range de datas para consulta
+    "---------------------------------------------------
+    "     criação do range de datas para consulta
     "---------------------------------------------------
 
     DATA: begin_month TYPE begda,
@@ -903,7 +903,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         end_date   = end_month
     ).
 
-    "consulta para obter textos de ausencia e presenca
+    "---------------------------------------------------
+    " consulta para obter textos de ausencia e presenca
     "---------------------------------------------------
 
     SELECT t554s~subty,               "tipo de ausência e presenca
@@ -920,7 +921,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       AND   t554s~begda LT @begin_month   "E a data inicio maior que a data final do mes
       AND   t554s~subty EQ t554t~awart.   "Onde o tipo de ausencia e presenca é igual ao Texto de ausência e presença
 
-    "verifica se houveram dados retornados
+    "----------------------------------------------------
+    "      verifica se houveram dados retornados
     "----------------------------------------------------
 
     IF me->it_aus_pre IS INITIAL.
@@ -928,6 +930,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    "----------------------------------------------------
     "formacao da linha de textos para ausencia e presenca
     "----------------------------------------------------
 
@@ -969,8 +972,6 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     ELSEIF me->it_employee IS INITIAL.  "tabela de colaboradores
       RETURN.
     ENDIF.
-
-    "----------------------------------------------------
 
     "----------------------------------------------------
     "             tratmento das coordenadas
