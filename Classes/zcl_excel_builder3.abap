@@ -215,6 +215,14 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS validation_datafile
       IMPORTING table_timesheet        TYPE ztshralv_tt
       EXPORTING table_timesheet_output TYPE ztshralv_tt.
+    METHODS set_coordenates
+      IMPORTING
+        letter_coord   TYPE string
+      EXPORTING
+        string_coord_a TYPE string
+        string_coord_b TYPE string
+        index_coord    TYPE i.
+
 ENDCLASS.
 
 
@@ -1981,6 +1989,46 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ENDIF.
 
     ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->SET_COORDENATES
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] LETTER_COORD                   TYPE        STRING
+* | [<---] STRING_COORD_A                 TYPE        STRING
+* | [<---] STRING_COORD_B                 TYPE        STRING
+* | [<---] INDEX_COORD                    TYPE        I
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD set_coordenates.
+
+    "-------------------------------------------------------
+    "info: envio da coordenada da coluna A ou B
+    "
+    "data de alteracao: 15.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "-------------------------------------------------------
+
+    "tratamento da coordenada enviada
+    IF letter_coord IS NOT INITIAL.
+      DATA: letter_coord2 TYPE string.
+      letter_coord2 = letter_coord.
+      TRANSLATE letter_coord2 TO UPPER CASE.
+    ENDIF.
+
+    "verifica qual coluna
+    CASE letter_coord2.
+      WHEN 'A'.
+        string_coord_a = 'A10'.
+        index_coord = 144.
+      WHEN 'B'.
+        string_coord_b = 'B10'.
+        index_coord = 144.
+      WHEN OTHERS.
+        MESSAGE | Escolha uma coordenada entre A ou B | TYPE 'S' DISPLAY LIKE 'E'.
+    ENDCASE.
 
   ENDMETHOD.
 
