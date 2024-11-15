@@ -1192,15 +1192,13 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA: lv_index TYPE i.
-    lv_index = 2.
-
     CLEAR me->it_employee.
 
     DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
     DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
 
-    DATA(i) = 2.
+    DATA: lv_index TYPE i. "coluna para buscar os dados dos colaboradores
+    DATA(i) = 2.           "index das sheets
 
     "itera por todas as sheets do excel, seja ela quantas houverem
     WHILE i <= lo_excel->get_worksheets_size( ).
@@ -1213,6 +1211,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "-----------------------------------------------------
       "           cabeçalho de colaboradores
       "-----------------------------------------------------
+
+      lv_index = 2.
 
       READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
 
@@ -1241,10 +1241,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       me->ls_employee-cntr_cust = cell->cell_value.
 
       APPEND ls_employee TO it_employee.
+      CLEAR me->ls_employee.
 
       "passa para a próxima sheet
       ADD 1 TO i.
-      lv_index = 2.
 
     ENDWHILE.
 
@@ -1496,12 +1496,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os projetos ativos da base de dados
     "
-    "data de alteracao: 09.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: documentacao do codigo e tratamento de erros
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
-    DATA stringline TYPE string.
+    "---------------------------------------------------
+    "             consulta para projetos
+    "---------------------------------------------------
 
     SELECT proj~objnr, "Nº objeto
            proj~pspid, "Definição do projeto
@@ -1513,17 +1515,28 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       WHERE jest~inact EQ ''
       AND jest~stat EQ 'I0002'.
 
-    "formacao da linha de textos para projetos
-    "---------------------------------------------
+    "----------------------------------------------------
+    "      verifica se houveram dados retornados
+    "----------------------------------------------------
+
+    IF me->it_projetos IS INITIAL.
+      MESSAGE | Não foram achados projetos na base de dados | TYPE 'S' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+
+    "----------------------------------------------------
+    "   formacao da linha de textos para projetos
+    "----------------------------------------------------
+
+    DATA stringline TYPE string.
 
     "itera sobre a tabela de textos concatenando o numero dos projetos à descricao dos projetos
     LOOP AT me->it_projetos INTO me->ls_projetos.
       stringline = me->ls_projetos-objnr.
       CONCATENATE stringline me->ls_projetos-post1 me->ls_projetos-pspid INTO me->ls_linha_projeto-line SEPARATED BY ' - '.
       APPEND me->ls_linha_projeto TO me->it_linha_projetos.
+      CLEAR stringline.
     ENDLOOP.
-
-    CLEAR stringline.
 
   ENDMETHOD.
 
@@ -2615,6 +2628,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [<---] NUMROW                         TYPE        I
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD switch_coordenates.
+
+    "-------------------------------------------------------
+    "info: recebe uma coordenada e redireciona para a próxima
+    "
+    "data de alteracao: 15.11.2024
+    "alteracao: criacao do método
+    "criado por: rafael albuquerque
+    "-------------------------------------------------------
 
     IF coordenate IS NOT INITIAL.
 
