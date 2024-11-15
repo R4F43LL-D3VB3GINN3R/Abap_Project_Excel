@@ -972,8 +972,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe ausencias e presencas do arquivo excel
     "
-    "data de alteracao: 10.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: implementacao do metodo set_coordenates e switch_coordenates
+    "revisão e documentação do código
+    "
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -1356,6 +1358,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
+
+    "----------------------------------------------------
+    "    verificacao de dados essenciais para consulta
+    "----------------------------------------------------
 
     IF me->lv_xstr IS INITIAL.
       RETURN.
