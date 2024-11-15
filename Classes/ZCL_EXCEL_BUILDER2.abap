@@ -973,8 +973,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "info: recebe ausencias e presencas do arquivo excel
     "
     "data de alteracao: 15.11.2024
-    "alteracao: implementacao do metodo set_coordenates e switch_coordenates
-    "revisão e documentação do código
+    "
+    "alteracao: aplicacao do metodo para redirecionar coordenadas
+    "verificacao para insercao de strings em celulas
     "
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1053,8 +1054,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "verifica as horas de ausencia e presenca
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10...
 
+            TRANSLATE cell->cell_value TO UPPER CASE.
+
             "se houver hora...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0' AND cell->cell_value NA sy-abcde.
 
               me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
@@ -1354,8 +1357,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os peps dos colaboradores no excel file
     "
-    "data de alteracao: 11.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "
+    "alteracao: aplicacao do metodo para redirecionar coordenadas
+    "verificacao para insercao de strings em celulas
+    "
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -1434,9 +1440,10 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "verifica as horas trabalhadas
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
 
-            "se houver hora trabalhada...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+            TRANSLATE cell->cell_value TO UPPER CASE.
 
+            "se houver hora trabalhada...
+            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0' AND cell->cell_value NA sy-abcde.
               me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
               me->ls_peps-row  = lv_coord_num.     "recebe a linha do projeto
@@ -1692,10 +1699,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: procura linhas mal preenchidas no documento
     "
-    "data de alteracao: 11.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 15.11.2024
+    "alteracao: implementacao de métodos para redirecionar coordenadas
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
+
+    "----------------------------------------------------
+    "    verificacao de dados essenciais para consulta
+    "----------------------------------------------------
 
     IF me->lv_xstr IS INITIAL.
       RETURN.
@@ -1707,46 +1718,56 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     REFRESH tt_alv.
 
-    DATA: lv_index TYPE i.
-    lv_index = 2.
+    "----------------------------------------------------
+    "             tratmento das coordenadas
+    "----------------------------------------------------
 
     "coordenada da celula
-    DATA: lv_coord      TYPE string,
-          lv_coord2     TYPE string,
-          lv_coord_num  TYPE i,
-          lv_str_coord  TYPE string,
-          lv_str_coord2 TYPE string.
+    DATA: lv_coord_num  TYPE i,      "Ex: 144
+          lv_str_coord  TYPE string, "Ex: A10
+          lv_str_coord2 TYPE string, "Ex: B10
+          lv_hour_index TYPE i.      "Ex: 10
 
-    "setup das coordenadas
-    lv_coord = 'A'.
-    lv_coord_num = 10.
-    lv_coord2 = 'B'.
+    "coordenadas A
+    "metodo para envio de coordenadas
+    me->set_coordenates(
+      EXPORTING
+        letter_coord   = 'A'
+      IMPORTING
+        string_coord_a = lv_str_coord  "coluna / linha
+*        string_coord_b =
+        index_coord    = lv_hour_index "index da hora trabalhada
+        numrow         = lv_coord_num  "numero da linha
+    ).
 
-    DATA: lv_hour_index TYPE i.
-    lv_hour_index = 144.
+    "coordenadas B
+    "metodo para envio de coordenadas
+    me->set_coordenates(
+      EXPORTING
+        letter_coord   = 'B'
+      IMPORTING
+*        string_coord_a =
+        string_coord_b = lv_str_coord2 "coluna / linha
+        index_coord    = lv_hour_index "index da hora trabalhada
+        numrow         = lv_coord_num  "numero da linha
+    ).
 
-    "flag da sheet
-    DATA: flag_next_sheet TYPE flag.
-    flag_next_sheet = abap_false.
+    "----------------------------------------------------
+    "                 leitura do arquivo
+    "----------------------------------------------------
 
     DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
     DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
-
     DATA(i) = 2.
+
+    DATA: lv_index TYPE i.
+    lv_index = 2.
 
     "itera por todas as sheets do excel, seja ela quantas houverem
     WHILE i <= lo_excel->get_worksheets_size( ).
 
       "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
       DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
-
-      "define a coordenada da celula ao inicio da sheet
-      lv_str_coord = lv_coord_num.
-      lv_str_coord2 = lv_coord_num.
-      CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "A10
-      CONDENSE lv_str_coord NO-GAPS.
-      CONCATENATE lv_coord2 lv_str_coord2 INTO lv_str_coord2. "A10
-      CONDENSE lv_str_coord2 NO-GAPS.
 
       "pega as informacoes do colaborador
       READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
@@ -1862,34 +1883,29 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
         me->get_month_datafile( ). "reseta data do mes
 
-        "redefine a coordenada para o proximo projeto
-        lv_coord = 'A'.
-        ADD 1 TO lv_coord_num.
-        lv_str_coord = lv_coord_num.
-        CONCATENATE lv_coord lv_str_coord INTO lv_str_coord.
-        CONDENSE lv_str_coord NO-GAPS.
+        "---------------------------------------------------------------------
+        " redefine a coordenada para o proximo motivo de ausencia ou presenca
+        "---------------------------------------------------------------------
 
-        "redefine a coordenada para o proximo projeto
-        lv_coord2 = 'B'.
-        lv_str_coord2 = lv_coord_num.
-        CONCATENATE lv_coord2 lv_str_coord2 INTO lv_str_coord2.
-        CONDENSE lv_str_coord2 NO-GAPS.
+        me->switch_coordenates(
+          EXPORTING
+            coordenate     = lv_str_coord
+          IMPORTING
+            string_coord_a = lv_str_coord
+*            string_coord_b =
+            index_coord    = lv_hour_index
+            numrow         = lv_coord_num
+        ).
 
-        "redefine o index de horarios conforme coordenada
-        CASE lv_str_coord.
-          WHEN 'A10'.
-            lv_hour_index = 144.
-          WHEN 'A11'.
-            lv_hour_index = 177.
-          WHEN 'A12'.
-            lv_hour_index = 210.
-          WHEN 'A13'.
-            lv_hour_index = 243.
-          WHEN 'A14'.
-            lv_hour_index = 276.
-          WHEN 'A15'.
-            lv_hour_index = 309.
-        ENDCASE.
+        me->switch_coordenates(
+          EXPORTING
+            coordenate     = lv_str_coord2
+          IMPORTING
+*            string_coord_a =
+            string_coord_b = lv_str_coord2
+            index_coord    = lv_hour_index
+            numrow         = lv_coord_num
+        ).
 
         CLEAR: st_alv-dia, st_alv-hora, st_alv-pep.
 
@@ -1899,17 +1915,11 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "    redefine dados para proxima sheet.
       "-------------------------------------------
 
-      lv_hour_index = 144. "index de horas trabalhadas
-
       me->get_month_datafile( ). "reseta data do mes
 
       "passa para a próxima sheet
       ADD 1 TO i.
       lv_index = 2.
-
-      CLEAR: lv_str_coord. "limpa a coordenada
-      CLEAR: lv_str_coord2. "limpa a coordenada
-      lv_coord_num = 10. "redefine a linha da coordenada
 
       CLEAR st_alv. "limpa a estrutura para a proxima sheet
 
@@ -2489,7 +2499,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     lv_stopwhile = abap_false.
 
     "---------------------------------------------------------------------------------------
-    "TRANSFERÊNCIA DE PROJETOS - AUSENCIAS E PRESENCAS
+    "               TRANSFERÊNCIA DE PROJETOS - AUSENCIAS E PRESENCAS
     "---------------------------------------------------------------------------------------
 
     "enquanto a flag estiver inativa
@@ -2554,9 +2564,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     "depois de coletada toda verificacao, é preciso tratar das possibilidades de haverem peps e motivos de ausencia e presenca na mesma linha
 
-    "---------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------
     "VERIFICACAO DE AUSENCIAS E PRESENCAS LIGADAS A PROJETOS ATIVOS E POSSIBILIDADES DE HORAS EXTRAS
-    "---------------------------------------------------------------------------------------
+    "------------------------------------------------------------------------------------------------
 
     DATA: row3 TYPE me->ty_timesheet. "linha a ser inserida
     DATA: it_timesheet2 TYPE TABLE OF me->ty_timesheet. "tabela para receber dados tratados
