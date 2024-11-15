@@ -221,8 +221,16 @@ CLASS zcl_excel_builder2 DEFINITION
       EXPORTING
         string_coord_a TYPE string
         string_coord_b TYPE string
-        index_coord    TYPE i.
-
+        index_coord    TYPE i
+        numrow         TYPE i.
+    METHODS switch_coordenates
+      IMPORTING
+        coordenate     TYPE string
+      EXPORTING
+        string_coord_a TYPE string
+        string_coord_b TYPE string
+        index_coord    TYPE i
+        numrow         TYPE i.
 ENDCLASS.
 
 
@@ -985,32 +993,29 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "             tratmento das coordenadas
     "----------------------------------------------------
 
-    DATA: lv_index TYPE i.
-    lv_index = 2.
-
     "coordenada da celula
-    DATA: lv_coord     TYPE string,
-          lv_coord_num TYPE i,
-          lv_str_coord TYPE string.
+    DATA: lv_str_coord TYPE string. "Ex: A10
+    DATA: lv_hour_index TYPE i.     "Ex: 144
+    DATA: lv_coord_num TYPE i.      "Ex: 10
 
-    lv_coord = 'B'.
-    lv_coord_num = 10.
-
-    DATA: lv_hour_index TYPE i.
-    lv_hour_index = 144.
+    "metodo para envio de coordenadas
+    me->set_coordenates(
+      EXPORTING
+        letter_coord   = 'B'
+      IMPORTING
+*        string_coord_a =
+        string_coord_b = lv_str_coord  "coluna / linha
+        index_coord    = lv_hour_index "index da hora trabalhada
+        numrow         = lv_coord_num  "numero da linha
+    ).
 
     "----------------------------------------------------
     "                 leitura do arquivo
     "----------------------------------------------------
 
-    "flag da sheet
-    DATA: flag_next_sheet TYPE flag.
-    flag_next_sheet = abap_false.
-
     "leitor do arquivo
     DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
     DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
-
     DATA(i) = 2. "primeira pagina de colaboradores
 
     "itera por todas as sheets do excel, seja ela quantas houverem
@@ -1021,13 +1026,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
       CLEAR me->ls_auspres.
 
-      "define a coordenada da celula ao inicio da sheet
-      lv_str_coord = lv_coord_num.
-      CONCATENATE lv_coord lv_str_coord INTO lv_str_coord. "B10
-      CONDENSE lv_str_coord NO-GAPS.
-
       "pega primeiramente o numero do colaborador
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 2. "B2
 
       "numero do colaborador
       me->ls_auspres-num = cell->cell_value.
@@ -1049,7 +1049,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           DO 31 TIMES.
 
             "verifica as horas de ausencia e presenca
-            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10...
 
             "se houver hora...
             IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
@@ -1057,8 +1057,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
               me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
               me->ls_auspres-row  = lv_coord_num.     "recebe a linha do projeto
-              APPEND ls_auspres TO it_auspres.           "insere a tabela de peps
-              CLEAR: ls_auspres-dia, ls_auspres-hora.
+              APPEND ls_auspres TO it_auspres.        "insere a tabela de peps
+              CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-row.
               CLEAR: cell->cell_value.
             ENDIF.
 
@@ -1075,29 +1075,16 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
         " redefine a coordenada para o proximo motivo de ausencia ou presenca
         "---------------------------------------------------------------------
 
-        lv_coord = 'B'.
-        ADD 1 TO lv_coord_num.
-        lv_str_coord = lv_coord_num.
-        CONCATENATE lv_coord lv_str_coord INTO lv_str_coord.
-        CONDENSE lv_str_coord NO-GAPS.
-
-        "redefine o index de horarios conforme coordenada
-        CASE lv_str_coord.
-          WHEN 'B10'.
-            lv_hour_index = 144.
-          WHEN 'B11'.
-            lv_hour_index = 177.
-          WHEN 'B12'.
-            lv_hour_index = 210.
-          WHEN 'B13'.
-            lv_hour_index = 243.
-          WHEN 'B14'.
-            lv_hour_index = 276.
-          WHEN 'B15'.
-            lv_hour_index = 309.
-        ENDCASE.
-
-        CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-auspres, ls_auspres-row.
+        "método para troca de coordenadas
+        me->switch_coordenates(
+          EXPORTING
+            coordenate     = lv_str_coord "coordenada enviada
+          IMPORTING
+*                string_coord_a =
+            string_coord_b = lv_str_coord  "nova coordenada
+            index_coord    = lv_hour_index "index da celula
+            numrow         = lv_coord_num  "numero da linha
+        ).
 
       ENDDO.
 
@@ -1105,16 +1092,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       "    redefine dados para proxima sheet.
       "-------------------------------------------
 
-      lv_hour_index = 144. "index de ausencias e presencas
-
       me->get_month_datafile( ). "reseta data do mes
 
-      "passa para a próxima sheet
-      ADD 1 TO i.
-      lv_index = 2.
-
-      CLEAR: lv_str_coord. "limpa a coordenada
-      lv_coord_num = 10. "redefine a linha da coordenada
+      ADD 1 TO i. "passa para a próxima sheet
 
       CLEAR ls_auspres. "limpa a estrutura para a proxima sheet
 
@@ -2000,6 +1980,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 * | [<---] STRING_COORD_A                 TYPE        STRING
 * | [<---] STRING_COORD_B                 TYPE        STRING
 * | [<---] INDEX_COORD                    TYPE        I
+* | [<---] NUMROW                         TYPE        I
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   METHOD set_coordenates.
 
@@ -2022,10 +2003,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     CASE letter_coord2.
       WHEN 'A'.
         string_coord_a = 'A10'.
-        index_coord = 144.
+        index_coord    = 144.
+        numrow         = 10.
       WHEN 'B'.
         string_coord_b = 'B10'.
-        index_coord = 144.
+        index_coord    = 144.
+        numrow         = 10.
       WHEN OTHERS.
         MESSAGE | Escolha uma coordenada entre A ou B | TYPE 'S' DISPLAY LIKE 'E'.
     ENDCASE.
@@ -2623,6 +2606,80 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "limpa a timesheet e recebe a tabela tratada.
     REFRESH me->it_timesheet.
     me->it_timesheet = it_timesheet2.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->SWITCH_COORDENATES
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] COORDENATE                     TYPE        STRING
+* | [<---] STRING_COORD_A                 TYPE        STRING
+* | [<---] STRING_COORD_B                 TYPE        STRING
+* | [<---] INDEX_COORD                    TYPE        I
+* | [<---] NUMROW                         TYPE        I
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD switch_coordenates.
+
+    IF coordenate IS NOT INITIAL.
+
+      DATA: coordenate2 TYPE string.
+      coordenate2 = coordenate.
+
+      CASE coordenate2.
+        WHEN 'A10'.
+          string_coord_a = 'A11'.
+          index_coord    = 177.
+          numrow         = 11.
+        WHEN 'A11'.
+          string_coord_a = 'A12'.
+          index_coord    = 210.
+          numrow         = 12.
+        WHEN 'A12'.
+          string_coord_a = 'A13'.
+          index_coord    = 243.
+          numrow         = 13.
+        WHEN 'A13'.
+          string_coord_a = 'A14'.
+          index_coord    = 276.
+          numrow         = 14.
+        WHEN 'A14'.
+          string_coord_a = 'A15'.
+          index_coord    = 309.
+          numrow         = 15.
+        WHEN 'A15'.
+          string_coord_a = 'A10'.
+          index_coord    = 144.
+          numrow         = 10.
+        WHEN 'B10'.
+          string_coord_b = 'B11'.
+          index_coord    = 177.
+          numrow         = 11.
+        WHEN 'B11'.
+          string_coord_b = 'B12'.
+          index_coord    = 210.
+          numrow         = 12.
+        WHEN 'B12'.
+          string_coord_b = 'B13'.
+          index_coord    = 243.
+          numrow         = 13.
+        WHEN 'B13'.
+          string_coord_b = 'B14'.
+          index_coord    = 276.
+          numrow         = 14.
+        WHEN 'B14'.
+          string_coord_b = 'B15'.
+          index_coord    = 309.
+          numrow         = 15.
+        WHEN 'B15'.
+          string_coord_b = 'B10'.
+          index_coord    = 144.
+          numrow         = 10.
+        WHEN OTHERS.
+          MESSAGE | Envie uma coordenada válida entre A10-A15 ou B10-B15 | TYPE 'S' DISPLAY LIKE 'E'.
+      ENDCASE.
+
+    ENDIF.
 
   ENDMETHOD.
 
