@@ -4,7 +4,7 @@ CLASS zcl_excel_builder2 DEFINITION
   CREATE PUBLIC .
 
   PUBLIC SECTION.
-
+    
     TYPES:
       "types de informacoes de colaboradores
       BEGIN OF wa_col,
