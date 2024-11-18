@@ -214,7 +214,7 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS get_wronglines_datafile.
     METHODS validation_datafile
       IMPORTING table_timesheet        TYPE ztshralv_tt
-      EXPORTING table_timesheet_output TYPE ztshralv_tt.
+      EXPORTING table_timesheet_output TYPE ztshralv_tt .
     METHODS set_coordenates
       IMPORTING
         letter_coord   TYPE string
@@ -1018,91 +1018,97 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------
 
     "leitor do arquivo
-    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
-    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
-    DATA(i) = 2. "primeira pagina de colaboradores
 
-    "itera por todas as sheets do excel, seja ela quantas houverem
-    WHILE i <= lo_excel->get_worksheets_size( ).
+    TRY.
+        DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+        DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+        DATA(i) = 2. "primeira pagina de colaboradores
 
-      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+        "itera por todas as sheets do excel, seja ela quantas houverem
+        WHILE i <= lo_excel->get_worksheets_size( ).
 
-      CLEAR me->ls_auspres.
+          "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+          DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
 
-      "pega primeiramente o numero do colaborador
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 2. "B2
+          CLEAR me->ls_auspres.
 
-      "numero do colaborador
-      me->ls_auspres-num = cell->cell_value.
+          "pega primeiramente o numero do colaborador
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 2. "B2
 
-      "----------------------------------------------------
-      "     itera sobre as seis ausencias e presencas
-      "----------------------------------------------------
+          "numero do colaborador
+          me->ls_auspres-num = cell->cell_value.
 
-      DO 6 TIMES.
+          "----------------------------------------------------
+          "     itera sobre as seis ausencias e presencas
+          "----------------------------------------------------
 
-        "procura se motivos de ausencia e presenca
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10...
+          DO 6 TIMES.
 
-        "se houver ausencia ou presenca disponivel
-        IF cell->cell_value NE 'Selecione'.
-          ls_auspres-auspres = cell->cell_value. "recebe o nome do pep
+            "procura se motivos de ausencia e presenca
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "B10...
 
-          "itera sobre os 31 dias do mes -- valor fixo
-          DO 31 TIMES.
+            "se houver ausencia ou presenca disponivel
+            IF cell->cell_value NE 'Selecione'.
+              ls_auspres-auspres = cell->cell_value. "recebe o nome do pep
 
-            "verifica as horas de ausencia e presenca
-            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10...
+              "itera sobre os 31 dias do mes -- valor fixo
+              DO 31 TIMES.
 
-            "se houver hora...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+                "verifica as horas de ausencia e presenca
+                READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10...
 
-              me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
-              me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
-              me->ls_auspres-row  = lv_coord_num.     "recebe a linha do projeto
-              APPEND ls_auspres TO it_auspres.        "insere a tabela de peps
-              CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-row.
-              CLEAR: cell->cell_value.
+                "se houver hora...
+                IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+
+                  me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
+                  me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
+                  me->ls_auspres-row  = lv_coord_num.     "recebe a linha do projeto
+                  APPEND ls_auspres TO it_auspres.        "insere a tabela de peps
+                  CLEAR: ls_auspres-dia, ls_auspres-hora, ls_auspres-row.
+                  CLEAR: cell->cell_value.
+                ENDIF.
+
+                ADD 1 TO lv_hour_index. "incrementa para a proxima hora
+                ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+
+              ENDDO.
+
+              me->get_month_datafile( ). "reseta data do mes
+
             ENDIF.
 
-            ADD 1 TO lv_hour_index. "incrementa para a proxima hora
-            ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+            "---------------------------------------------------------------------
+            " redefine a coordenada para o proximo motivo de ausencia ou presenca
+            "---------------------------------------------------------------------
+
+            "método para troca de coordenadas
+            me->switch_coordenates(
+              EXPORTING
+                coordenate     = lv_str_coord "coordenada enviada
+              IMPORTING
+*                  string_coord_a =
+                string_coord_b = lv_str_coord  "nova coordenada
+                index_coord    = lv_hour_index "index da celula
+                numrow         = lv_coord_num  "numero da linha
+            ).
 
           ENDDO.
 
-          me->get_month_datafile( ). "reseta data do mes
+          "-------------------------------------------
+          "    redefine dados para proxima sheet.
+          "-------------------------------------------
 
-        ENDIF.
+          me->get_month_datafile( )  . "reseta data do mes
 
-        "---------------------------------------------------------------------
-        " redefine a coordenada para o proximo motivo de ausencia ou presenca
-        "---------------------------------------------------------------------
+          ADD 1 TO i. "passa para a próxima sheet
 
-        "método para troca de coordenadas
-        me->switch_coordenates(
-          EXPORTING
-            coordenate     = lv_str_coord "coordenada enviada
-          IMPORTING
-*                string_coord_a =
-            string_coord_b = lv_str_coord  "nova coordenada
-            index_coord    = lv_hour_index "index da celula
-            numrow         = lv_coord_num  "numero da linha
-        ).
+          CLEAR ls_auspres. "limpa a estrutura para a proxima sheet
 
-      ENDDO.
-
-      "-------------------------------------------
-      "    redefine dados para proxima sheet.
-      "-------------------------------------------
-
-      me->get_month_datafile( ). "reseta data do mes
-
-      ADD 1 TO i. "passa para a próxima sheet
-
-      CLEAR ls_auspres. "limpa a estrutura para a proxima sheet
-
-    ENDWHILE.
+        ENDWHILE.
+      CATCH zcx_excel INTO DATA(ls_error).
+        MESSAGE ls_error->get_text( ) TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -1196,59 +1202,64 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
     CLEAR me->it_employee.
 
-    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
-    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+    TRY.
+        DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+        DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
 
-    DATA: lv_index TYPE i. "coluna para buscar os dados dos colaboradores
-    DATA(i) = 2.           "index das sheets
+        DATA: lv_index TYPE i. "coluna para buscar os dados dos colaboradores
+        DATA(i) = 2.           "index das sheets
 
-    "itera por todas as sheets do excel, seja ela quantas houverem
-    WHILE i <= lo_excel->get_worksheets_size( ).
+        "itera por todas as sheets do excel, seja ela quantas houverem
+        WHILE i <= lo_excel->get_worksheets_size( ).
 
-      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+          "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+          DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
 
-      CLEAR me->ls_employee.
+          CLEAR me->ls_employee.
 
-      "-----------------------------------------------------
-      "           cabeçalho de colaboradores
-      "-----------------------------------------------------
+          "-----------------------------------------------------
+          "           cabeçalho de colaboradores
+          "-----------------------------------------------------
 
-      lv_index = 2.
+          lv_index = 2.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
 
-      "numero do colaborador
-      me->ls_employee-num = cell->cell_value.
+          "numero do colaborador
+          me->ls_employee-num = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B3
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B3
 
-      "nome do colaborador
-      me->ls_employee-nome = cell->cell_value.
+          "nome do colaborador
+          me->ls_employee-nome = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B4
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B4
 
-      "equipa do colaborador
-      me->ls_employee-equipa = cell->cell_value.
+          "equipa do colaborador
+          me->ls_employee-equipa = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B5
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B5
 
-      "centro de custo do colaborador
-      me->ls_employee-cntr_cust = cell->cell_value.
+          "centro de custo do colaborador
+          me->ls_employee-cntr_cust = cell->cell_value.
 
-      APPEND ls_employee TO it_employee.
-      CLEAR me->ls_employee.
+          APPEND ls_employee TO it_employee.
+          CLEAR me->ls_employee.
 
-      "passa para a próxima sheet
-      ADD 1 TO i.
+          "passa para a próxima sheet
+          ADD 1 TO i.
 
-    ENDWHILE.
+        ENDWHILE.
+      CATCH zcx_excel INTO DATA(lo_exc).
+        MESSAGE lo_exc->get_text( ) TYPE 'E'.
+        RETURN.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -1325,24 +1336,29 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA: integerdate TYPE i. "recebe o numeiro inteiro da data do arquivo excel
+    TRY.
+        DATA: integerdate TYPE i. "recebe o numeiro inteiro da data do arquivo excel
 
-    CLEAR me->gv_datemonth.
+        CLEAR me->gv_datemonth.
 
-    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
-    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+        DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+        DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
 
-    "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-    DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( 2 ).
+        "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+        DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( 2 ).
 
-    "lê diretamente a celula onde está a data
-    READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 10. "B6
+        "lê diretamente a celula onde está a data
+        READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 10. "B6
 
-    "numero do colaborador
-    integerdate = cell->cell_value.                    "recebe o valor inteiro
-    integerdate = integerdate - 2.                     "remove os dois dias da data
-    me->gv_datemonth = '19000101'.                     "recebe data default do sistema
-    me->gv_datemonth = me->gv_datemonth + integerdate. "soma com a quantidade do numero inteiro
+        "numero do colaborador
+        integerdate = cell->cell_value.                    "recebe o valor inteiro
+        integerdate = integerdate - 2.                     "remove os dois dias da data
+        me->gv_datemonth = '19000101'.                     "recebe data default do sistema
+        me->gv_datemonth = me->gv_datemonth + integerdate. "soma com a quantidade do numero inteiro
+      CATCH zcx_excel INTO DATA(lo_exc).
+        MESSAGE lo_exc->get_text( ) TYPE 'E' .
+        RETURN.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -1400,93 +1416,99 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "                 leitura do arquivo
     "----------------------------------------------------
 
+    TRY.
+
     "leitor do arquivo
     DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
     DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
     DATA(i) = 2.
 
-    "itera por todas as sheets do excel, seja ela quantas houverem
-    WHILE i <= lo_excel->get_worksheets_size( ).
+        "itera por todas as sheets do excel, seja ela quantas houverem
+        WHILE i <= lo_excel->get_worksheets_size( ).
 
-      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+          "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+          DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
 
-      CLEAR me->ls_peps.
+          CLEAR me->ls_peps.
 
-      "pega primeiramente o numero do colaborador
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 2. "B2
+          "pega primeiramente o numero do colaborador
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX 2. "B2
 
-      "numero do colaborador
-      me->ls_peps-num = cell->cell_value.
+          "numero do colaborador
+          me->ls_peps-num = cell->cell_value.
 
-      "----------------------------------------------------
-      "          itera sobre os seis projetos
-      "----------------------------------------------------
+          "----------------------------------------------------
+          "          itera sobre os seis projetos
+          "----------------------------------------------------
 
-      "itera sobre os seis projetos
-      DO 6 TIMES.
+          "itera sobre os seis projetos
+          DO 6 TIMES .
 
-        "procura se há peps ativas
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
+            "procura se há peps ativas
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
 
-        "se houver pep disponivel
-        IF cell->cell_value NE 'Selecione'.
-          ls_peps-pep = cell->cell_value. "recebe o nome do pep
+            "se houver pep disponivel
+            IF cell->cell_value NE 'Selecione'.
+              ls_peps-pep = cell->cell_value. "recebe o nome do pep
 
-          "itera sobre os 31 dias do mes -- valor fixo
-          DO 31 TIMES.
+              "itera sobre os 31 dias do mes -- valor fixo
+              DO 31 TIMES.
 
-            "verifica as horas trabalhadas
-            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
+                "verifica as horas trabalhadas
+                READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
 
-            "se houver hora trabalhada...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
-              me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
-              me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
-              me->ls_peps-row  = lv_coord_num.     "recebe a linha do projeto
-              APPEND ls_peps TO it_peps.           "insere a tabela de peps
-              CLEAR: ls_peps-dia, ls_peps-hora, ls_peps-row.
-              CLEAR: cell->cell_value.
+                "se houver hora trabalhada...
+                IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+                  me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
+                  me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
+                  me->ls_peps-row  = lv_coord_num.     "recebe a linha do projeto
+                  APPEND ls_peps TO it_peps.           "insere a tabela de peps
+                  CLEAR: ls_peps-dia, ls_peps-hora, ls_peps-row.
+                  CLEAR: cell->cell_value.
+                ENDIF.
+
+                ADD 1 TO lv_hour_index. "incrementa para a proxima hora
+                ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+
+              ENDDO.
+
+              me->get_month_datafile( ). "reseta data do mes
+
             ENDIF.
 
-            ADD 1 TO lv_hour_index. "incrementa para a proxima hora
-            ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+            "---------------------------------------------------------------------
+            "            redefine a coordenada para o proximo pep
+            "---------------------------------------------------------------------
+
+            "método para troca de coordenadas
+            me->switch_coordenates(
+              EXPORTING
+                coordenate     = lv_str_coord "coordenada enviada
+              IMPORTING
+               string_coord_a = lv_str_coord  "nova coordenada
+*              string_coord_b = lv_str_coord  "nova coordenada
+                index_coord    = lv_hour_index "index da celula
+                numrow         = lv_coord_num  "numero da linha
+            ).
 
           ENDDO.
 
+          "-------------------------------------------
+          "    redefine dados para proxima sheet.
+          "-------------------------------------------
+
           me->get_month_datafile( ). "reseta data do mes
 
-        ENDIF.
+          "passa para a próxima sheet
+          ADD 1 TO i.
 
-        "---------------------------------------------------------------------
-        "            redefine a coordenada para o proximo pep
-        "---------------------------------------------------------------------
+          CLEAR ls_peps. "limpa a estrutura para a proxima sheet
 
-        "método para troca de coordenadas
-        me->switch_coordenates(
-          EXPORTING
-            coordenate     = lv_str_coord "coordenada enviada
-          IMPORTING
-           string_coord_a = lv_str_coord  "nova coordenada
-*            string_coord_b = lv_str_coord  "nova coordenada
-            index_coord    = lv_hour_index "index da celula
-            numrow         = lv_coord_num  "numero da linha
-        ).
-
-      ENDDO.
-
-      "-------------------------------------------
-      "    redefine dados para proxima sheet.
-      "-------------------------------------------
-
-      me->get_month_datafile( ). "reseta data do mes
-
-      "passa para a próxima sheet
-      ADD 1 TO i.
-
-      CLEAR ls_peps. "limpa a estrutura para a proxima sheet
-
-    ENDWHILE.
+        ENDWHILE.
+      CATCH zcx_excel INTO DATA(ls_error).
+        MESSAGE ls_error->get_text( ) TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -1753,174 +1775,179 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "                 leitura do arquivo
     "----------------------------------------------------
 
-    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
-    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
-    DATA(i) = 2.
+    TRY.
+        DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+        DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+        DATA(i) = 2.
 
-    DATA: lv_index TYPE i.
-    lv_index = 2.
+        DATA: lv_index TYPE i.
+        lv_index = 2.
 
-    "itera por todas as sheets do excel, seja ela quantas houverem
-    WHILE i <= lo_excel->get_worksheets_size( ).
+        "itera por todas as sheets do excel, seja ela quantas houverem
+        WHILE i <= lo_excel->get_worksheets_size( ).
 
-      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+          "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+          DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
 
-      "pega as informacoes do colaborador
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
+          "pega as informacoes do colaborador
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
 
-      "numero do colaborador
-      me->st_alv-num = cell->cell_value.
+          "numero do colaborador
+          me->st_alv-num = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
 
-      me->st_alv-nome = cell->cell_value.
+          me->st_alv-nome = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
 
-      me->st_alv-equipa = cell->cell_value.
+          me->st_alv-equipa = cell->cell_value.
 
-      ADD 2 TO lv_index.
+          ADD 2 TO lv_index.
 
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B2
 
-      me->st_alv-cntr_cust = cell->cell_value.
+          me->st_alv-cntr_cust = cell->cell_value.
 
-      "itera sobre os seis projetos tanto na coluna A quanto na B
-      DO 6 TIMES.
+          "itera sobre os seis projetos tanto na coluna A quanto na B
+          DO 6 TIMES.
 
-        "procura se há peps ativas
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell2) WITH KEY cell_coords = lv_str_coord2. "B10...
+            "procura se há peps ativas
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_coords = lv_str_coord. "A10...
+            READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell2) WITH KEY cell_coords = lv_str_coord2. "B10...
 
-        "se nao houverem peps selecionadas
-        IF cell->cell_value EQ 'Selecione' AND cell2->cell_value EQ 'Selecione'.
+            "se nao houverem peps selecionadas
+            IF cell->cell_value EQ 'Selecione' AND cell2->cell_value EQ 'Selecione'.
 
-          "itera sobre os 31 dias do mes -- valor fixo
-          DO 31 TIMES.
+              "itera sobre os 31 dias do mes -- valor fixo
+              DO 31 TIMES.
 
-            "verifica as horas trabalhadas
-            READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
+                "verifica as horas trabalhadas
+                READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
 
-            "caso seja uma letra, passa o valor da celula para maiuscula por precaucao
-            TRANSLATE cell->cell_value TO UPPER CASE.
+                "caso seja uma letra, passa o valor da celula para maiuscula por precaucao
+                TRANSLATE cell->cell_value TO UPPER CASE.
 
-            "substitui pontos por virgulas
-            REPLACE
-              ALL OCCURRENCES OF '.'
-              IN cell->cell_value WITH ','.
+                "substitui pontos por virgulas
+                REPLACE
+                  ALL OCCURRENCES OF '.'
+                  IN cell->cell_value WITH ','.
 
-            "se houver algum ponto encontrado
-            IF sy-subrc EQ 0.
-              cell->cell_value = 'A'.
+                "se houver algum ponto encontrado
+                IF sy-subrc EQ 0.
+                  cell->cell_value = 'A'.
+                ENDIF.
+
+                "se houver hora trabalhada em projeto vazio...
+                IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+
+                  me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
+
+                  "se for uma letra ou palavra...
+                  IF cell->cell_value CA sy-abcde.
+                    cell->cell_value = '0'.
+                    me->st_alv-info = '@05@' && 'Caractere Inválido' .
+
+                    "se a celula nao estiver preenchida
+                  ELSEIF cell->cell_value IS INITIAL.
+                    cell->cell_value = '0'.
+                    me->st_alv-info = '@05@' && 'Célula Vazia' .
+
+                    "se houver hora nao vinculada a projeto / ausencia e presenca
+                  ELSE.
+                    me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
+                    me->st_alv-info = '@05@' && 'Horário Inválido' .
+                  ENDIF.
+
+                  APPEND st_alv TO tt_alv.
+
+                  CLEAR: me->st_alv-dia, me->st_alv-hora.
+                  CLEAR: cell->cell_value.
+                  CLEAR: cell2->cell_value.
+
+                ELSEIF cell->cell_value IS INITIAL.
+
+                  me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
+                  me->st_alv-hora = '0'. "recebe a hora trabalhada
+                  me->st_alv-info = '@05@' && 'Célula Vazia' .
+                  APPEND st_alv TO tt_alv.
+
+                  CLEAR: me->st_alv-dia, me->st_alv-hora.
+                  CLEAR: cell->cell_value.
+                  CLEAR: cell2->cell_value.
+
+                ENDIF.
+
+                "substitui pontos por virgulas
+                REPLACE
+                  ALL OCCURRENCES OF '.'
+                  IN cell->cell_value WITH ','.
+
+                "se houver algum ponto encontrado
+                IF sy-subrc EQ 0.
+                  me->st_alv-hora = '0'.
+                ENDIF.
+
+                ADD 1 TO lv_hour_index. "incrementa para a proxima hora
+                ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+
+              ENDDO.
+
+              me->get_month_datafile( ). "reseta data do mes
+
             ENDIF.
 
-            "se houver hora trabalhada em projeto vazio...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
+            me->get_month_datafile( ). "reseta data do mes
 
-              me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
+            "---------------------------------------------------------------------
+            " redefine a coordenada para o proximo motivo de ausencia ou presenca
+            "---------------------------------------------------------------------
 
-              "se for uma letra ou palavra...
-              IF cell->cell_value CA sy-abcde.
-                cell->cell_value = '0'.
-                me->st_alv-info = '@05@' && 'Caractere Inválido' .
+            me->switch_coordenates(
+              EXPORTING
+                coordenate     = lv_str_coord
+              IMPORTING
+                string_coord_a = lv_str_coord
+*              string_coord_b =
+                index_coord    = lv_hour_index
+                numrow         = lv_coord_num
+            ).
 
-                "se a celula nao estiver preenchida
-              ELSEIF cell->cell_value IS INITIAL.
-                cell->cell_value = '0'.
-                me->st_alv-info = '@05@' && 'Célula Vazia' .
+            me->switch_coordenates(
+              EXPORTING
+                coordenate     = lv_str_coord2
+              IMPORTING
+*              string_coord_a =
+                string_coord_b = lv_str_coord2
+                index_coord    = lv_hour_index
+                numrow         = lv_coord_num
+            ).
 
-                "se houver hora nao vinculada a projeto / ausencia e presenca
-              ELSE.
-                me->st_alv-hora = cell->cell_value. "recebe a hora trabalhada
-                me->st_alv-info = '@05@' && 'Horário Inválido' .
-              ENDIF.
-
-              APPEND st_alv TO tt_alv.
-
-              CLEAR: me->st_alv-dia, me->st_alv-hora.
-              CLEAR: cell->cell_value.
-              CLEAR: cell2->cell_value.
-
-            ELSEIF cell->cell_value IS INITIAL.
-
-              me->st_alv-dia = gv_datemonth.     "recebe o dia do mes
-              me->st_alv-hora = '0'. "recebe a hora trabalhada
-              me->st_alv-info = '@05@' && 'Célula Vazia' .
-              APPEND st_alv TO tt_alv.
-
-              CLEAR: me->st_alv-dia, me->st_alv-hora.
-              CLEAR: cell->cell_value.
-              CLEAR: cell2->cell_value.
-
-            ENDIF.
-
-            "substitui pontos por virgulas
-            REPLACE
-              ALL OCCURRENCES OF '.'
-              IN cell->cell_value WITH ','.
-
-            "se houver algum ponto encontrado
-            IF sy-subrc EQ 0.
-              me->st_alv-hora = '0'.
-            ENDIF.
-
-            ADD 1 TO lv_hour_index. "incrementa para a proxima hora
-            ADD 1 TO gv_datemonth.  "incrementa para o proximo dia
+            CLEAR: st_alv-dia, st_alv-hora, st_alv-pep.
 
           ENDDO.
 
+          "-------------------------------------------
+          "    redefine dados para proxima sheet.
+          "-------------------------------------------
+
           me->get_month_datafile( ). "reseta data do mes
 
-        ENDIF.
+          "passa para a próxima sheet
+          ADD 1 TO i.
+          lv_index = 2.
 
-        me->get_month_datafile( ). "reseta data do mes
+          CLEAR st_alv. "limpa a estrutura para a proxima sheet
 
-        "---------------------------------------------------------------------
-        " redefine a coordenada para o proximo motivo de ausencia ou presenca
-        "---------------------------------------------------------------------
-
-        me->switch_coordenates(
-          EXPORTING
-            coordenate     = lv_str_coord
-          IMPORTING
-            string_coord_a = lv_str_coord
-*            string_coord_b =
-            index_coord    = lv_hour_index
-            numrow         = lv_coord_num
-        ).
-
-        me->switch_coordenates(
-          EXPORTING
-            coordenate     = lv_str_coord2
-          IMPORTING
-*            string_coord_a =
-            string_coord_b = lv_str_coord2
-            index_coord    = lv_hour_index
-            numrow         = lv_coord_num
-        ).
-
-        CLEAR: st_alv-dia, st_alv-hora, st_alv-pep.
-
-      ENDDO.
-
-      "-------------------------------------------
-      "    redefine dados para proxima sheet.
-      "-------------------------------------------
-
-      me->get_month_datafile( ). "reseta data do mes
-
-      "passa para a próxima sheet
-      ADD 1 TO i.
-      lv_index = 2.
-
-      CLEAR st_alv. "limpa a estrutura para a proxima sheet
-
-    ENDWHILE.
+        ENDWHILE.
+      CATCH zcx_excel INTO DATA(ls_error).
+        MESSAGE ls_error->get_text( ) TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -2092,7 +2119,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       link = | '=HIPERLINK({ me->ls_colaborador-pernr } - { me->ls_colaborador-sname } A!B2)' |.
 
       TRY.
-          lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2  ).
+          lo_worksheet->set_cell( ip_row = lv_index ip_column = 'A' ip_value = ls_colaborador-pernr ip_style = tp_style_bold_center_guid2 ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'B' ip_value = ls_colaborador-sname ip_style = tp_style_bold_center_guid2 ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'C' ip_value = ls_colaborador-vdsk1 ip_style = tp_style_bold_center_guid2 ).
           lo_worksheet->set_cell( ip_row = lv_index ip_column = 'D' ip_value = ls_colaborador-kostl ip_style = tp_style_bold_center_guid2 ).
