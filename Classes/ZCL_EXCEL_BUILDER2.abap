@@ -105,7 +105,7 @@ CLASS zcl_excel_builder2 DEFINITION
              dia       TYPE sy-datum,
              pep       TYPE char100,
              auspres   TYPE char100,
-             hora      TYPE catshours,
+             hora      TYPE string,
              row       TYPE string,
              info      TYPE string,
            END OF ty_timesheet.
@@ -129,7 +129,7 @@ CLASS zcl_excel_builder2 DEFINITION
              num  TYPE string,
              dia  TYPE string,
              pep  TYPE string,
-             hora TYPE catshours,
+             hora TYPE string,
              row  TYPE string,
            END OF ty_peps.
 
@@ -1055,10 +1055,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "verifica as horas de ausencia e presenca
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10...
 
-            TRANSLATE cell->cell_value TO UPPER CASE.
-
             "se houver hora...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0' AND cell->cell_value NA sy-abcde.
+            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
 
               me->ls_auspres-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_auspres-hora = cell->cell_value. "recebe a hora trabalhada
@@ -1441,10 +1439,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
             "verifica as horas trabalhadas
             READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_hour_index. "E10
 
-            TRANSLATE cell->cell_value TO UPPER CASE.
-
             "se houver hora trabalhada...
-            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0' AND cell->cell_value NA sy-abcde.
+            IF cell->cell_value NE '0' AND cell->cell_value NE '0,0'.
               me->ls_peps-dia  = gv_datemonth.     "recebe o dia do mes
               me->ls_peps-hora = cell->cell_value. "recebe a hora trabalhada
               me->ls_peps-row  = lv_coord_num.     "recebe a linha do projeto
