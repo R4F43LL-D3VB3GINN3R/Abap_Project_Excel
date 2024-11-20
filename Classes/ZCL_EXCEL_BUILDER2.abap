@@ -7,7 +7,7 @@ CLASS zcl_excel_builder2 DEFINITION
 
     TYPES:
       "types de informacoes de colaboradores
-      BEGIN OF wa_col,
+      BEGIN OF wa_col ,
         pernr TYPE pa0001-pernr, "Número Pessoal
         sname TYPE pa0002-cname, "Nome
         vdsk1 TYPE pa0001-vdsk1, "Chave de Organizacao
