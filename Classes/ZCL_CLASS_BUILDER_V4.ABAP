@@ -323,12 +323,12 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
                 lv_hourstr = cell->cell_value.  "casting int to string
                 ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
                 ls_timesheet-dia  = lv_date.    "estrutura recebe a data
-                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
-                APPEND ls_timesheet TO it_timesheet. "insere linha a tabela
-                CLEAR ls_timesheet-hora.             "limpa a hora
-                CLEAR ls_timesheet-dia.              "limpa o dia
-                CLEAR ls_timesheet-info.             "limpa a info
-                CLEAR cell->cell_value.              "limpa o valor da celula
+                ls_timesheet-info =  '@1A@' && 'OBS' . "estrutura recebe ok
+                APPEND ls_timesheet TO it_timesheet.   "insere linha a tabela
+                CLEAR ls_timesheet-hora.               "limpa a hora
+                CLEAR ls_timesheet-dia.                "limpa o dia
+                CLEAR ls_timesheet-info.               "limpa a info
+                CLEAR cell->cell_value.                "limpa o valor da celula
               ENDIF.
 
               ADD 1 TO lv_date.    "incrementa para o proximo dia
@@ -1557,44 +1557,64 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA: it_return TYPE TABLE OF bapiret2,
           ls_return TYPE bapiret2.
 
+    "pep entrada e saída
+    DATA: code_pep  TYPE string,
+          code_pep2 TYPE ps_posid.
+
+    "string para mensagem de erro.
+    DATA: lv_message TYPE string.
+
     "passa os dados para a estrutura bapicast e insere a tabela interna.
-    LOOP AT table_timesheet INTO DATA(ls_timesheet).
+    LOOP AT table_timesheet INTO DATA(ls_timesheet) WHERE hora NE '0'.
+
+      code_pep = ls_timesheet-pep+2(8). "recebe os numeros do projeto
+
+      "converte o numero do pep
+      CALL FUNCTION 'CONVERSION_EXIT_KONPD_OUTPUT'
+        EXPORTING
+          input  = code_pep
+        IMPORTING
+          output = code_pep2.
+
+      "preenche a estrutura
       ls_bapicats1-workdate       = ls_timesheet-dia.
       ls_bapicats1-employeenumber = ls_timesheet-num.
       ls_bapicats1-send_cctr      = ls_timesheet-cntr_cust.
-      ls_bapicats1-wbs_element    = ls_timesheet-pep.
+      ls_bapicats1-wbs_element    = code_pep2.
       ls_bapicats1-catshours      = ls_timesheet-hora.
+
       APPEND ls_bapicats1 TO it_bapicats1.
       CLEAR ls_bapicats1.
       CLEAR ls_timesheet.
+
     ENDLOOP.
 
     IF it_bapicats1 IS NOT INITIAL.
 
       CALL FUNCTION 'BAPI_CATIMESHEETMGR_INSERT'
         EXPORTING
+          profile        = 'Z0000000'
           testrun        = 'X'
         TABLES
           catsrecords_in = it_bapicats1
           return         = it_return.  " Tabela de mensagens de retorno
 
-      result-rc = 0.
+      "verifica retorno de mensagem de erro
+      READ TABLE it_return INTO ls_return WITH KEY type = 'E'.
+      IF sy-subrc EQ 0.
+        "verifica a linha relacionada ao erro
+        READ TABLE it_bapicats1 INTO ls_bapicats1 INDEX ls_return-row.
+        "trata a mensagem
+        lv_message = 'Linha:' && ' ' && ls_return-row && 'Nº Colaborador:' && ' ' && ls_bapicats1-employeenumber && 'Data:' && ' ' && ls_bapicats1-workdate.
 
-      LOOP AT it_return INTO ls_return.
-        IF ls_return-type = 'E'.  " Tipo 'E' indica erro
-          result-rc = 4.
-          result-message = ls_return-message.
-          EXIT.  " Interrompe a execução se houver erros
-        ENDIF.
-      ENDLOOP.
-
-      IF result-rc EQ 0.
-        result-message = | Timesheet submetida com sucesso. |.
+        "preenche a estrutura com a mensagem
+        result-rc = 4.
+        result-message = lv_message.
       ENDIF.
-
     ENDIF.
 
-  ENDMETHOD.
+
+ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
