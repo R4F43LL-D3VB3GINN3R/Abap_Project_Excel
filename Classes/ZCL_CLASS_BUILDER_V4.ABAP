@@ -113,41 +113,6 @@ CLASS zcl_excel_builder2 DEFINITION
     DATA: it_timesheet TYPE TABLE OF ty_timesheet,
           ls_timesheet TYPE ty_timesheet.
 
-    "dados dos colaboradores em excel file
-    TYPES: BEGIN OF ty_employee,
-             num       TYPE string,
-             nome      TYPE string,
-             equipa    TYPE string,
-             cntr_cust TYPE string,
-           END OF ty_employee.
-
-    DATA: it_employee TYPE TABLE OF ty_employee,
-          ls_employee TYPE ty_employee.
-
-    "dados dos peps em excel file
-    TYPES: BEGIN OF ty_peps,
-             num  TYPE string,
-             dia  TYPE string,
-             pep  TYPE string,
-             hora TYPE string,
-             row  TYPE string,
-           END OF ty_peps.
-
-    DATA: it_peps TYPE TABLE OF ty_peps,
-          ls_peps TYPE ty_peps.
-
-    "dados de ausencia e presenca em excel file
-    TYPES: BEGIN OF ty_auspres,
-             num     TYPE string,
-             dia     TYPE string,
-             auspres TYPE string,
-             hora    TYPE string,
-             row     TYPE string,
-           END OF ty_auspres.
-
-    DATA: it_auspres TYPE TABLE OF ty_auspres,
-          ls_auspres TYPE ty_auspres.
-
     DATA: tt_alv TYPE ztshralv_tt, "tabela para alv
           st_alv TYPE ztshralv_st. "linha para alv
 
