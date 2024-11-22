@@ -7,7 +7,7 @@ CLASS zcl_excel_builder2 DEFINITION
 
     TYPES:
       "types de informacoes de colaboradores
-      BEGIN OF wa_col ,
+      BEGIN OF wa_col,
         pernr TYPE pa0001-pernr, "Número Pessoal
         sname TYPE pa0002-cname, "Nome
         vdsk1 TYPE pa0001-vdsk1, "Chave de Organizacao
@@ -975,8 +975,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "
     "data de alteracao: 15.11.2024
     "
-    "alteracao: aplicacao do metodo para redirecionar coordenadas
-    "verificacao para insercao de strings em celulas
+    "alteracao: "alteracao: "tratamento de erros e casting catshours to string em horas.
     "
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -1191,8 +1190,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os dados dos colaboradores do arquivo excel e guarda numa tabela interna
     "
-    "data de alteracao: 11.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 18.11.2024
+    "alteracao: tratamento de erros
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -1327,8 +1326,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe o mes do arquivo excel referente a celula B6
     "
-    "data de alteracao: 11.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 18.11.2024
+    "alteracao: tratamento de erros
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
 
@@ -1372,10 +1371,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "----------------------------------------------------------------------------------------------
     "info: recebe os peps dos colaboradores no excel file
     "
-    "data de alteracao: 15.11.2024
+    "data de alteracao: 18.11.2024
     "
-    "alteracao: aplicacao do metodo para redirecionar coordenadas
-    "verificacao para insercao de strings em celulas
+    "alteracao: "tratamento de erros e casting catshours to string em horas.
     "
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
