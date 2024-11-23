@@ -175,270 +175,13 @@ CLASS zcl_excel_builder2 DEFINITION
     METHODS validation_datafile
       IMPORTING table_timesheet        TYPE ztshralv_tt
       EXPORTING table_timesheet_output TYPE ztshralv_tt .
-    METHODS ac_get_datafile.
+    METHODS get_datafile.
 
 ENDCLASS.
 
 
 
 CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
-
-
-* <SIGNATURE>---------------------------------------------------------------------------------------+
-* | Instance Private Method ZCL_EXCEL_BUILDER2->AC_GET_DATAFILE
-* +-------------------------------------------------------------------------------------------------+
-* +--------------------------------------------------------------------------------------</SIGNATURE>
-  METHOD ac_get_datafile.
-
-    "verifica se há arquivo convertido
-    IF lv_xstr IS INITIAL.
-      RETURN.
-    ENDIF.
-
-    REFRESH me->it_timesheet.
-
-    "------------------------------------------------------------------------
-    "informacoes de leitura de index das tabelas
-
-    "coluna / linha
-    DATA: lv_col_peps TYPE i,
-          lv_col_aus  TYPE i,
-          lv_row      TYPE i.
-
-    "coluna do calendario
-    DATA: lv_col_cal TYPE i.
-
-    "------------------------------------------------------------------------
-    "busca a quantidade de dias do mes
-
-    DATA: lv_hourstr TYPE string.
-
-    DATA: lv_date       TYPE /osp/dt_date, "data enviada
-          lv_countdays  TYPE /osp/dt_day,  "dias do mes recebidos
-          lv_countdays2 TYPE i.            "dias do mes em inteiro
-
-    "metodo para capturar a data enviada pelo programa
-    me->get_date( date = gv_datemonth ).
-
-    lv_date = gv_datemonth. "recebe a data enviada pelo programa
-
-    "funcao retorna a quantidade de dias do mes
-    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
-      EXPORTING
-        iv_date = lv_date
-      IMPORTING
-        ev_days = lv_countdays.
-
-    lv_countdays2 = lv_countdays. "casting int
-
-    "------------------------------------------------------------------------
-
-    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
-    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
-
-    DATA: lv_index TYPE i. "coluna para buscar os dados dos colaboradores
-    DATA(i) = 2.           "index das sheets
-
-    "itera por todas as sheets do excel, seja ela quantas houverem
-    WHILE i <= lo_excel->get_worksheets_size( ).
-
-      lv_index = 2.
-
-      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
-      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
-
-      "-----------------------------------------------------
-      "           cabeçalho de colaboradores
-      "-----------------------------------------------------
-
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
-
-      "numero do colaborador
-      me->ls_timesheet-num = cell->cell_value.
-
-      ADD 2 TO lv_index.
-
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B3
-
-      "nome do colaborador
-      me->ls_timesheet-nome = cell->cell_value.
-
-      ADD 2 TO lv_index.
-
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B4
-
-      "equipa do colaborador
-      me->ls_timesheet-equipa = cell->cell_value.
-
-      ADD 2 TO lv_index.
-
-      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B5
-
-      "centro de custo do colaborador
-      me->ls_timesheet-cntr_cust = cell->cell_value.
-
-      "-----------------------------------------------------
-      "     verificacao de peps / ausencias e presencas
-      "------------------------------------------------------
-
-      "define linhas e colunas a serem verificadas
-      lv_col_peps = 1.  "coluna de peps
-      lv_col_cal  = 5.  "coluna dos calendarios
-      lv_col_aus  = 2.  "coluna de ausencias e presencas
-      lv_row      = 10. "linha por projeto de ausencia e presenca
-
-      "boleana para prender as verificacoes até que tudo seja verificado
-      DATA: lv_stop TYPE flag.
-      lv_stop = abap_false.
-
-      "itera por todos os projetos ausencias e presencas
-      WHILE lv_stop EQ abap_false.
-
-        "itera pelos projetos
-        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_peps.
-
-        "---------------------------------------------------------------------------
-        "caso haja projeto ou projeto e ausencia e presenca
-
-        "verifica coluna de peps
-        IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
-          ls_timesheet-pep = cell->cell_value.
-
-          "verifica ausencias e presencas
-          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_aus.
-
-          "verifica linha /coluna de ausencia e presenca
-          IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
-            ls_timesheet-auspres = cell->cell_value.
-
-            "-----------------------------------------------------
-            "verifica todos os dias do mes relacionados aos peps / ausencias e presencas
-            DO lv_countdays2 TIMES.
-
-              "verifica ausencias e presencas
-              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
-
-              "verifica se há hora trabalhada neste dia
-              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
-                lv_hourstr = cell->cell_value.  "casting int to string
-                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
-                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
-                ls_timesheet-info =  '@1A@' && 'OBS' . "estrutura recebe ok
-                APPEND ls_timesheet TO it_timesheet.   "insere linha a tabela
-                CLEAR ls_timesheet-hora.               "limpa a hora
-                CLEAR ls_timesheet-dia.                "limpa o dia
-                CLEAR ls_timesheet-info.               "limpa a info
-                CLEAR cell->cell_value.                "limpa o valor da celula
-              ENDIF.
-
-              ADD 1 TO lv_date.    "incrementa para o proximo dia
-              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
-
-            ENDDO.
-
-            lv_date    = me->gv_datemonth. "reseta a data do mes
-            lv_col_cal = 5.                 "reseta a coluna do calendario
-
-            "quando so houver peps sem ausencias e presencas
-          ELSE.
-
-            "-----------------------------------------------------
-            "verifica todos os dias do mes relacionados aos peps
-            DO lv_countdays2 TIMES.
-
-              "verifica ausencias e presencas
-              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
-
-              "verifica se há hora trabalhada neste dia
-              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
-                lv_hourstr = cell->cell_value.  "casting int to string
-                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
-                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
-                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
-                APPEND ls_timesheet TO it_timesheet. "insere linha a tabela
-                CLEAR ls_timesheet-hora.             "limpa a hora
-                CLEAR ls_timesheet-dia.              "limpa o dia
-                CLEAR ls_timesheet-info.             "limpa a info
-                CLEAR cell->cell_value.              "limpa o valor da celula
-              ENDIF.
-
-              ADD 1 TO lv_date.    "incrementa para o proximo dia
-              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
-
-            ENDDO.
-
-            lv_date    = me->gv_datemonth. "reseta a data do mes
-            lv_col_cal = 5.                 "reseta a coluna do calendario
-
-          ENDIF.
-        ENDIF.
-
-        "---------------------------------------------------------------------------
-        "somente havendo ausencias e presencas
-
-*        verifica se nao houve pep
-        IF ls_timesheet-pep IS INITIAL.
-
-          "verifica ausencias e presencas
-          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_aus.
-
-          "verifica linha /coluna de ausencia e presenca
-          IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
-
-            ls_timesheet-auspres = cell->cell_value.
-
-            DO lv_countdays2 TIMES.
-
-              "verifica ausencias e presencas
-              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
-
-              "verifica se há hora trabalhada neste dia
-              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
-                lv_hourstr = cell->cell_value.  "casting int to string
-                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
-                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
-                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
-                APPEND ls_timesheet TO it_timesheet. "insere linha a tabela
-                CLEAR ls_timesheet-hora.             "limpa a hora
-                CLEAR ls_timesheet-dia.              "limpa o dia
-                CLEAR cell->cell_value.              "limpa o valor da celula
-                CLEAR ls_timesheet-info.             "limpa a info
-              ENDIF.
-
-              ADD 1 TO lv_date.    "incrementa para o proximo dia
-              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
-
-            ENDDO.
-
-            lv_date    = me->gv_datemonth. "reseta a data do mes
-            lv_col_cal = 5.                 "reseta a coluna do calendario
-
-            CLEAR ls_timesheet-auspres.
-          ENDIF.
-
-        ENDIF.
-
-        CLEAR ls_timesheet-auspres.          "limpa a ausencia e presenca
-        CLEAR ls_timesheet-pep. "limpa o pep e passa para o proximo
-
-        "--------------------------------------------------------------------------
-
-        ADD 1 TO lv_row. "incrementa para proxima linha
-
-        "sai do loop após buscar os peps selecionados.
-        IF lv_row GT 15.
-          lv_stop = abap_true.
-        ENDIF.
-
-      ENDWHILE.
-
-      CLEAR ls_timesheet.
-
-      ADD 1 TO i. "incrementa para a proxima sheet.
-
-    ENDWHILE.
-
-  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -1210,6 +953,271 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_EXCEL_BUILDER2->GET_DATAFILE
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_datafile.
+
+    "----------------------------------------------------------------------------------------------
+    "info: recebe os dados do arquivo excel e insere numa tabela interna
+    "
+    "data de alteracao: 23.11.2024
+    "alteracao: modificacao de verificacao de retorno de dados
+    "criado por: rafael albuquerque
+    "----------------------------------------------------------------------------------------------
+
+    "verifica se há arquivo convertido
+    IF lv_xstr IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    REFRESH me->it_timesheet.
+
+    "------------------------------------------------------------------------
+    "informacoes de leitura de index das tabelas
+
+    "coluna / linha
+    DATA: lv_col_peps TYPE i,
+          lv_col_aus  TYPE i,
+          lv_row      TYPE i.
+
+    "coluna do calendario
+    DATA: lv_col_cal TYPE i.
+
+    "------------------------------------------------------------------------
+    "busca a quantidade de dias do mes
+
+    DATA: lv_hourstr TYPE string.
+
+    DATA: lv_date       TYPE /osp/dt_date, "data enviada
+          lv_countdays  TYPE /osp/dt_day,  "dias do mes recebidos
+          lv_countdays2 TYPE i.            "dias do mes em inteiro
+
+    "metodo para capturar a data enviada pelo programa
+    me->get_date( date = gv_datemonth ).
+
+    lv_date = gv_datemonth. "recebe a data enviada pelo programa
+
+    "funcao retorna a quantidade de dias do mes
+    CALL FUNCTION '/OSP/GET_DAYS_IN_MONTH'
+      EXPORTING
+        iv_date = lv_date
+      IMPORTING
+        ev_days = lv_countdays.
+
+    lv_countdays2 = lv_countdays. "casting int
+
+    "------------------------------------------------------------------------
+
+    DATA(lo_reader) = NEW zcl_excel_reader_2007( ).
+    DATA(lo_excel)  = lo_reader->zif_excel_reader~load( i_excel2007 = me->lv_xstr ).  "passa o XSTRING carregado
+
+    DATA: lv_index TYPE i. "coluna para buscar os dados dos colaboradores
+    DATA(i) = 2.           "index das sheets
+
+    "itera por todas as sheets do excel, seja ela quantas houverem
+    WHILE i <= lo_excel->get_worksheets_size( ).
+
+      lv_index = 2.
+
+      "começa a partir da segunda sheet, sendo a primeira a exibicao de dados gerais
+      DATA(lo_worksheet) = lo_excel->get_worksheet_by_index( i ).
+
+      "-----------------------------------------------------
+      "           cabeçalho de colaboradores
+      "-----------------------------------------------------
+
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO DATA(cell) INDEX lv_index. "B2
+
+      "numero do colaborador
+      me->ls_timesheet-num = cell->cell_value.
+
+      ADD 2 TO lv_index.
+
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B3
+
+      "nome do colaborador
+      me->ls_timesheet-nome = cell->cell_value.
+
+      ADD 2 TO lv_index.
+
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B4
+
+      "equipa do colaborador
+      me->ls_timesheet-equipa = cell->cell_value.
+
+      ADD 2 TO lv_index.
+
+      READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell INDEX lv_index. "B5
+
+      "centro de custo do colaborador
+      me->ls_timesheet-cntr_cust = cell->cell_value.
+
+      "-----------------------------------------------------
+      "     verificacao de peps / ausencias e presencas
+      "------------------------------------------------------
+
+      "define linhas e colunas a serem verificadas
+      lv_col_peps = 1.  "coluna de peps
+      lv_col_cal  = 5.  "coluna dos calendarios
+      lv_col_aus  = 2.  "coluna de ausencias e presencas
+      lv_row      = 10. "linha por projeto de ausencia e presenca
+
+      "boleana para prender as verificacoes até que tudo seja verificado
+      DATA: lv_stop TYPE flag.
+      lv_stop = abap_false.
+
+      "itera por todos os projetos ausencias e presencas
+      WHILE lv_stop EQ abap_false.
+
+        "itera pelos projetos
+        READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_peps.
+
+        "---------------------------------------------------------------------------
+        "caso haja projeto ou projeto e ausencia e presenca
+
+        "verifica coluna de peps
+        IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
+          ls_timesheet-pep = cell->cell_value.
+
+          "verifica ausencias e presencas
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_aus.
+
+          "verifica linha /coluna de ausencia e presenca
+          IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
+            ls_timesheet-auspres = cell->cell_value.
+
+            "-----------------------------------------------------
+            "verifica todos os dias do mes relacionados aos peps / ausencias e presencas
+            DO lv_countdays2 TIMES.
+
+              "verifica ausencias e presencas
+              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
+
+              "verifica se há hora trabalhada neste dia
+              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
+                lv_hourstr = cell->cell_value.  "casting int to string
+                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
+                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
+                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
+                APPEND ls_timesheet TO it_timesheet.   "insere linha a tabela
+                CLEAR ls_timesheet-hora.               "limpa a hora
+                CLEAR ls_timesheet-dia.                "limpa o dia
+                CLEAR ls_timesheet-info.               "limpa a info
+                CLEAR cell->cell_value.                "limpa o valor da celula
+              ENDIF.
+
+              ADD 1 TO lv_date.    "incrementa para o proximo dia
+              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
+
+            ENDDO.
+
+            lv_date    = me->gv_datemonth. "reseta a data do mes
+            lv_col_cal = 5.                 "reseta a coluna do calendario
+
+            "quando so houver peps sem ausencias e presencas
+          ELSE.
+
+            "-----------------------------------------------------
+            "verifica todos os dias do mes relacionados aos peps
+            DO lv_countdays2 TIMES.
+
+              "verifica ausencias e presencas
+              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
+
+              "verifica se há hora trabalhada neste dia
+              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
+                lv_hourstr = cell->cell_value.  "casting int to string
+                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
+                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
+                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
+                APPEND ls_timesheet TO it_timesheet. "insere linha a tabela
+                CLEAR ls_timesheet-hora.             "limpa a hora
+                CLEAR ls_timesheet-dia.              "limpa o dia
+                CLEAR ls_timesheet-info.             "limpa a info
+                CLEAR cell->cell_value.              "limpa o valor da celula
+              ENDIF.
+
+              ADD 1 TO lv_date.    "incrementa para o proximo dia
+              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
+
+            ENDDO.
+
+            lv_date    = me->gv_datemonth. "reseta a data do mes
+            lv_col_cal = 5.                 "reseta a coluna do calendario
+
+          ENDIF.
+        ENDIF.
+
+        "---------------------------------------------------------------------------
+        "somente havendo ausencias e presencas
+
+*        verifica se nao houve pep
+        IF ls_timesheet-pep IS INITIAL.
+
+          "verifica ausencias e presencas
+          READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_aus.
+
+          "verifica linha /coluna de ausencia e presenca
+          IF cell->cell_value NE 'Selecione' AND cell->cell_value IS NOT INITIAL.
+
+            ls_timesheet-auspres = cell->cell_value.
+
+            DO lv_countdays2 TIMES.
+
+              "verifica ausencias e presencas
+              READ TABLE lo_worksheet->sheet_content REFERENCE INTO cell WITH KEY cell_row = lv_row cell_column = lv_col_cal.
+
+              "verifica se há hora trabalhada neste dia
+              IF cell->cell_value IS NOT INITIAL AND cell->cell_value NE '0,0' AND cell->cell_value NE '0'.
+                lv_hourstr = cell->cell_value.  "casting int to string
+                ls_timesheet-hora = lv_hourstr. "estrutura recebe a hora trabalhada
+                ls_timesheet-dia  = lv_date.    "estrutura recebe a data
+                ls_timesheet-info =  '@04@' &&  ' OK' . "estrutura recebe ok
+                APPEND ls_timesheet TO it_timesheet. "insere linha a tabela
+                CLEAR ls_timesheet-hora.             "limpa a hora
+                CLEAR ls_timesheet-dia.              "limpa o dia
+                CLEAR cell->cell_value.              "limpa o valor da celula
+                CLEAR ls_timesheet-info.             "limpa a info
+              ENDIF.
+
+              ADD 1 TO lv_date.    "incrementa para o proximo dia
+              ADD 1 TO lv_col_cal. "incrementa para a proxima coluna
+
+            ENDDO.
+
+            lv_date    = me->gv_datemonth. "reseta a data do mes
+            lv_col_cal = 5.                 "reseta a coluna do calendario
+
+            CLEAR ls_timesheet-auspres.
+          ENDIF.
+
+        ENDIF.
+
+        CLEAR ls_timesheet-auspres.          "limpa a ausencia e presenca
+        CLEAR ls_timesheet-pep. "limpa o pep e passa para o proximo
+
+        "--------------------------------------------------------------------------
+
+        ADD 1 TO lv_row. "incrementa para proxima linha
+
+        "sai do loop após buscar os peps selecionados.
+        IF lv_row GT 15.
+          lv_stop = abap_true.
+        ENDIF.
+
+      ENDWHILE.
+
+      CLEAR ls_timesheet.
+
+      ADD 1 TO i. "incrementa para a proxima sheet.
+
+    ENDWHILE.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
 * | Instance Public Method ZCL_EXCEL_BUILDER2->GET_DATE
 * +-------------------------------------------------------------------------------------------------+
 * | [--->] DATE                           TYPE        SY-DATUM
@@ -1539,8 +1547,8 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     "-------------------------------------------------------
     "info: insere os dados validados na alv no catsdb
     "
-    "data de alteracao: 13.11.2024
-    "alteracao: criacao do método
+    "data de alteracao: 23.11.2024
+    "alteracao: implementacao final do metodo
     "criado por: rafael albuquerque
     "-------------------------------------------------------
 
@@ -1562,12 +1570,14 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
           code_pep2 TYPE ps_posid.
 
     "string para mensagem de erro.
-    DATA: lv_message TYPE string.
+    DATA: lv_message TYPE string,
+          lv_row     TYPE string.
 
     "passa os dados para a estrutura bapicast e insere a tabela interna.
     LOOP AT table_timesheet INTO DATA(ls_timesheet) WHERE hora NE '0'.
 
-      code_pep = ls_timesheet-pep+2(8). "recebe os numeros do projeto
+      "recebe os numeros do projeto excluindo o refixo com letras
+      code_pep = ls_timesheet-pep+2(8).
 
       "converte o numero do pep
       CALL FUNCTION 'CONVERSION_EXIT_KONPD_OUTPUT'
@@ -1583,6 +1593,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ls_bapicats1-wbs_element    = code_pep2.
       ls_bapicats1-catshours      = ls_timesheet-hora.
 
+      "insere os dados na tabela interna
       APPEND ls_bapicats1 TO it_bapicats1.
       CLEAR ls_bapicats1.
       CLEAR ls_timesheet.
@@ -1604,17 +1615,46 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       IF sy-subrc EQ 0.
         "verifica a linha relacionada ao erro
         READ TABLE it_bapicats1 INTO ls_bapicats1 INDEX ls_return-row.
-        "trata a mensagem
-        lv_message = 'Linha:' && ' ' && ls_return-row && 'Nº Colaborador:' && ' ' && ls_bapicats1-employeenumber && 'Data:' && ' ' && ls_bapicats1-workdate.
+
+        lv_row = ls_return-row. "casting int >> str
+
+        "tratamento da mensagem
+        CONCATENATE 'Linha:' lv_row
+                    '/'
+                    'Nº Colaborador:' ls_bapicats1-employeenumber
+                    '/'
+                    'Data:' ls_bapicats1-workdate
+                    '[Motivo: '
+                    ls_return-message
+                    ']'
+                    INTO lv_message
+                    SEPARATED BY space.
 
         "preenche a estrutura com a mensagem
         result-rc = 4.
         result-message = lv_message.
+
+      "se nao houver erro algum encontrado..
+      ELSE.
+
+        "executa a bapi fora do modo teste
+        CALL FUNCTION 'BAPI_CATIMESHEETMGR_INSERT'
+        EXPORTING
+          profile        = 'Z0000000'
+          testrun        = ''
+        TABLES
+          catsrecords_in = it_bapicats1
+          return         = it_return.  " Tabela de mensagens de retorno
+
+        lv_message = 'Timesheet Submetida com Sucesso!'.
+
+        result-rc = 0.
+        result-message = lv_message.
+
       ENDIF.
     ENDIF.
 
-
-ENDMETHOD.
+  ENDMETHOD.
 
 
 * <SIGNATURE>---------------------------------------------------------------------------------------+
@@ -2053,10 +2093,9 @@ ENDMETHOD.
   METHOD upload_timesheet.
 
     "----------------------------------------------------------------------------------------------
-    "info: carrega o arquivo excel para o programa e invoca todos os metodos envolvidos na leitura
-    "do arquivo
+    "info: alteracao dos metodos de implementacao da timesheet
     "
-    "data de alteracao: 09.11.2024
+    "data de alteracao: 22.11.2024
     "alteracao: criacao do método
     "criado por: rafael albuquerque
     "----------------------------------------------------------------------------------------------
@@ -2119,7 +2158,7 @@ ENDMETHOD.
     "         metodos envolvidos no upload para programama ZHCM_EXCEL_UPLOAD.
     "----------------------------------------------------------------------------------------
     me->get_month_datafile( ).        "recebe o mês do arquivo
-    me->ac_get_datafile( ).
+    me->get_datafile( ).
     "----------------------------------------------------------------------------------------
 
   ENDMETHOD.
