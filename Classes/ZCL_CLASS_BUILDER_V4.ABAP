@@ -1569,6 +1569,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
     DATA: code_pep  TYPE string,
           code_pep2 TYPE ps_posid.
 
+    "ausencias e presencas
+    data: auspres type string.
+
     "string para mensagem de erro.
     DATA: lv_message TYPE string,
           lv_row     TYPE string.
@@ -1578,6 +1581,9 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
 
       "recebe os numeros do projeto excluindo o refixo com letras
       code_pep = ls_timesheet-pep+2(8).
+
+      "recebe codigo de ausencia e presenca
+      auspres = ls_timesheet-auspres+0(4).
 
       "converte o numero do pep
       CALL FUNCTION 'CONVERSION_EXIT_KONPD_OUTPUT'
@@ -1591,6 +1597,7 @@ CLASS ZCL_EXCEL_BUILDER2 IMPLEMENTATION.
       ls_bapicats1-employeenumber = ls_timesheet-num.
       ls_bapicats1-send_cctr      = ls_timesheet-cntr_cust.
       ls_bapicats1-wbs_element    = code_pep2.
+      ls_bapicats1-abs_att_type    = auspres.
       ls_bapicats1-catshours      = ls_timesheet-hora.
 
       "insere os dados na tabela interna
